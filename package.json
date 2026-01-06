@@ -40,12 +40,16 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.3.0",
+    "@commitlint/config-conventional": "^20.3.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/node": "^24.1.0",
+    "husky": "^9.1.7",
     "jsdom": "^27.4.0",
     "prettier": "^3.7.4",
     "rollup": "^4.55.1",
