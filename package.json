@@ -1,0 +1,64 @@
+{
+  "name": "@yb/pubsub-mfe",
+  "version": "0.1.0",
+  "description": "Lightweight browser Pub/Sub for microfrontends with cross-tab delivery and history replay capabilities.",
+  "author": "Yassine Belkaid",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.20",
+    "pnpm": ">=10.22.0"
+  },
+  "packageManager": "pnpm@10.22.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/belyas/pubsub-mfe.git"
+  },
+  "bugs": {
+    "url": "https://github.com/belyas/pubsub-mfe/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "rollup -c --watch",
+    "build": "rollup -c",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "@types/node": "^20.10.0",
+    "jsdom": "^27.4.0",
+    "prettier": "^3.7.4",
+    "rollup": "^4.55.1",
+    "rollup-plugin-dts": "^6.3.0",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  },
+  "keywords": [
+    "pubsub",
+    "publish-subscribe",
+    "microfrontend",
+    "event-bus",
+    "broker"
+  ]
+}
