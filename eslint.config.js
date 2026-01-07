@@ -20,6 +20,7 @@ export default [
         setInterval: 'readonly',
         clearInterval: 'readonly',
         process: 'readonly',
+        window: 'readonly',
       },
     },
     plugins: {
