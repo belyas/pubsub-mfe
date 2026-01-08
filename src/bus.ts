@@ -272,8 +272,34 @@ export class PubSubBusImpl implements PubSubBus {
     return 0;
   }
 
-  clear() {}
-  dispose() {}
+  clear() {
+    this.assertNotDisposed("clear");
+
+    for (const subs of this.subscriptions.values()) {
+      for (const sub of subs) {
+        if (sub.options.signal && sub.abortListener) {
+          sub.options.signal.removeEventListener("abort", sub.abortListener);
+        }
+      }
+    }
+
+    this.subscriptions.clear();
+    this.retentionBuffer?.clear();
+
+    this.debug("All subscriptions and retention buffer cleared");
+  }
+
+  dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.clear();
+    this.publishListeners.clear();
+    this.disposed = true;
+    this.debug("Bus disposed");
+  }
+
   getHooks(): BusHooks {
     this.assertNotDisposed("getHooks");
     return {
