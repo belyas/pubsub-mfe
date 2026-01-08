@@ -1,5 +1,5 @@
 import { RetentionRingBuffer } from "./retention-buffer";
-import { matchTopic, validatePublishTopic } from "./topic-matcher";
+import { compileMatcher, matchTopic, validatePublishTopic } from "./topic-matcher";
 import type {
   BusHooks,
   CompiledMatcher,
@@ -91,12 +91,79 @@ export class PubSubBusImpl implements PubSubBus {
   }
 
   subscribe<T = unknown>(
-    _pattern: TopicPattern,
-    _handler: MessageHandler<T>,
-    _options?: SubscribeOptions
+    pattern: TopicPattern,
+    handler: MessageHandler<T>,
+    options: SubscribeOptions = {}
   ): Unsubscribe {
     this.assertNotDisposed("subscribe");
-    return () => {};
+
+    if (options.signal?.aborted) {
+      this.debug("Subscription skipped — signal already aborted", { pattern });
+
+      return () => {};
+    }
+
+    const matcher = compileMatcher(pattern);
+    const subscription: Subscription = {
+      handler: handler as MessageHandler,
+      matcher,
+      options,
+    };
+    let patternSubscriptions = this.subscriptions.get(pattern);
+
+    if (!patternSubscriptions) {
+      patternSubscriptions = new Set();
+      this.subscriptions.set(pattern, patternSubscriptions);
+    }
+
+    if (patternSubscriptions.size > this.config.maxHandlersPerTopic) {
+      const error = new Error(
+        `Maximum handlers (${this.config.maxHandlersPerTopic}) reached for pattern "${pattern}".`
+      );
+      this.emitDiagnostic({
+        type: "limit-exceeded",
+        limitType: "max-handlers",
+        topic: pattern,
+        currentCount: patternSubscriptions.size,
+        maxAllowed: this.config.maxHandlersPerTopic,
+        message: error.message,
+      });
+
+      if (this.config.onMaxHandlersExceeded === "throw") {
+        throw error;
+      }
+
+      return () => {};
+    }
+
+    patternSubscriptions.add(subscription);
+
+    const unsubscribe = () => {
+      this.removeSubscription(pattern, subscription);
+    };
+
+    if (options.signal) {
+      const abortListener = () => {
+        this.debug("Subscription aborted via signal", { pattern });
+        unsubscribe();
+      };
+      subscription.abortListener = abortListener;
+      options.signal.addEventListener("abort", abortListener, { once: true });
+    }
+
+    this.emitDiagnostic({
+      type: "subscribe",
+      pattern,
+      handlerCount: patternSubscriptions.size,
+    });
+
+    this.debug("Subscribed", { pattern, handlerCount: patternSubscriptions.size });
+
+    if (options.replay && options.replay > 0) {
+      this.replayMessages(handler as MessageHandler, matcher, options.replay);
+    }
+
+    return unsubscribe;
   }
 
   publish<T = unknown>(topic: Topic, payload: T, options: PublishOptions = {}): Message<T> {
@@ -210,6 +277,59 @@ export class PubSubBusImpl implements PubSubBus {
       },
       dispatchExternal(_message: Message) {},
     };
+  }
+
+  private removeSubscription(pattern: TopicPattern, subscription: Subscription): void {
+    const patternSubscriptions = this.subscriptions.get(pattern);
+
+    if (!patternSubscriptions) {
+      return;
+    }
+
+    if (subscription.options.signal && subscription.abortListener) {
+      subscription.options.signal.removeEventListener("abort", subscription.abortListener);
+    }
+
+    patternSubscriptions.delete(subscription);
+
+    if (patternSubscriptions.size === 0) {
+      this.subscriptions.delete(pattern);
+    }
+
+    this.emitDiagnostic({
+      type: "unsubscribe",
+      pattern,
+      handlerCount: patternSubscriptions.size,
+    });
+
+    this.debug("Unsubscribed", { pattern, remaining: patternSubscriptions.size });
+  }
+
+  private replayMessages(handler: MessageHandler, matcher: CompiledMatcher, count: number): void {
+    if (!this.retentionBuffer) {
+      this.debug("Replay skipped — no retention configured");
+      return;
+    }
+
+    const now = getTimestamp();
+    const messages = this.retentionBuffer.getMessages(now);
+    const matching = messages.filter((msg) => matchTopic(msg.topic, matcher));
+    const toReplay = matching.slice(-count);
+
+    if (toReplay.length === 0) {
+      this.debug("Replay: no matching messages", { pattern: matcher.pattern, count });
+      return;
+    }
+
+    this.debug("Replaying messages", {
+      pattern: matcher.pattern,
+      requested: count,
+      replaying: toReplay.length,
+    });
+
+    for (const message of toReplay) {
+      this.safeInvokeHandler(handler, message, -1); // -1 indicates replay
+    }
   }
 
   private retainMessage(message: Message): void {
