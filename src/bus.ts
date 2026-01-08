@@ -1,5 +1,10 @@
 import { RetentionRingBuffer } from "./retention-buffer";
-import { compileMatcher, matchTopic, validatePublishTopic } from "./topic-matcher";
+import {
+  clearMatcherCache,
+  compileMatcher,
+  matchTopic,
+  validatePublishTopic,
+} from "./topic-matcher";
 import type {
   BusHooks,
   CompiledMatcher,
@@ -506,4 +511,32 @@ export class PubSubBusImpl implements PubSubBus {
       throw new Error(`Cannot ${operation}: bus has been disposed.`);
     }
   }
+}
+
+/**
+ * Create a new Pub/Sub bus instance.
+ *
+ * @param config - Optional configuration
+ *
+ * @returns PubSubBus instance
+ *
+ * @example
+ * const bus = createPubSub({ app: 'my-app', debug: true });
+ *
+ * bus.subscribe('cart.item.add', (msg) => {
+ *   console.log('Item added:', msg.payload);
+ * });
+ *
+ * bus.publish('cart.item.add', { sku: 'ABC123', qty: 1 });
+ */
+export function createPubSub(config?: PubSubConfig): PubSubBus {
+  return new PubSubBusImpl(config);
+}
+
+/**
+ * Reset all internal state — schemas and matcher cache.
+ * Use only in tests!
+ */
+export function __resetForTesting(): void {
+  clearMatcherCache();
 }
