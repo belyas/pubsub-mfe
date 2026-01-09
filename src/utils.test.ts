@@ -7,10 +7,12 @@ import {
   isPlainObject,
   // Safe config parsing
   safePick,
+  isUnsafeRegexPattern,
+  MAX_PATTERN_LENGTH,
 } from "./utils";
 
 describe("utils", () => {
-  describe("isDangerousProperty", () => {
+  describe("IsDangerousProperty", () => {
     it("should return true for __proto__", () => {
       expect(isDangerousProperty("__proto__")).toBe(true);
     });
@@ -30,7 +32,7 @@ describe("utils", () => {
     });
   });
 
-  describe("hasOwnProperty", () => {
+  describe("HasOwnProperty", () => {
     it("should return true for own properties", () => {
       expect(hasOwnProperty({ a: 1 }, "a")).toBe(true);
     });
@@ -40,7 +42,7 @@ describe("utils", () => {
     });
   });
 
-  describe("isPlainObject", () => {
+  describe("IsPlainObject", () => {
     it("should return true for plain objects", () => {
       expect(isPlainObject({})).toBe(true);
       expect(isPlainObject({ a: 1 })).toBe(true);
@@ -61,7 +63,7 @@ describe("utils", () => {
     });
   });
 
-  describe("safePick", () => {
+  describe("SafePick", () => {
     it("should pick only allowed keys from an object", () => {
       const source = { a: 1, b: 2, c: 3 };
       const result = safePick(source, ["a", "c"]);
@@ -115,6 +117,44 @@ describe("utils", () => {
 
       expect(result).toEqual({});
       expect(result["polluted"]).toBeUndefined();
+    });
+  });
+
+  describe("IsUnsafeRegexPattern", () => {
+    it("should detect nested quantifiers (a+)+", () => {
+      const result = isUnsafeRegexPattern("(a+)+");
+
+      expect(result.unsafe).toBe(true);
+      expect(result.reason).toContain("nested quantifiers");
+    });
+
+    it("should detect nested quantifiers (.*)+", () => {
+      const result = isUnsafeRegexPattern("(.*)+");
+
+      expect(result.unsafe).toBe(true);
+    });
+
+    it("should detect overlapping alternation (a|aa)+", () => {
+      const result = isUnsafeRegexPattern("(a|aa)+");
+
+      expect(result.unsafe).toBe(true);
+      expect(result.reason).toContain("overlapping");
+    });
+
+    it("should reject patterns exceeding max length", () => {
+      const longPattern = "a".repeat(MAX_PATTERN_LENGTH + 1);
+      const result = isUnsafeRegexPattern(longPattern);
+
+      expect(result.unsafe).toBe(true);
+      expect(result.reason).toContain("exceeds maximum length");
+    });
+
+    it("should allow safe patterns", () => {
+      expect(isUnsafeRegexPattern("^[a-z]+$").unsafe).toBe(false);
+      expect(isUnsafeRegexPattern("^\\d{3}-\\d{4}$").unsafe).toBe(false);
+      expect(isUnsafeRegexPattern("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$").unsafe).toBe(
+        false
+      );
     });
   });
 });

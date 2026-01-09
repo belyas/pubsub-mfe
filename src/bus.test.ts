@@ -825,4 +825,82 @@ describe("PubSubBus", () => {
       rateLimitedBus.dispose();
     });
   });
+
+  describe("Schema validation", () => {
+    it("should validate payload in strict mode", () => {
+      const strictBus = createPubSub({ validationMode: "strict" });
+
+      strictBus.registerSchema("cart.item@1", {
+        type: "object",
+        properties: {
+          sku: { type: "string" },
+          qty: { type: "number", minimum: 1 },
+        },
+        required: ["sku", "qty"],
+      });
+
+      expect(() => {
+        strictBus.publish(
+          "cart.item.add",
+          { sku: "ABC", qty: 1 },
+          {
+            schemaVersion: "cart.item@1",
+          }
+        );
+      }).not.toThrow();
+
+      expect(() => {
+        strictBus.publish(
+          "cart.item.add",
+          { sku: "ABC", qty: 0 },
+          {
+            schemaVersion: "cart.item@1",
+          }
+        );
+      }).toThrow("Validation failed");
+
+      strictBus.dispose();
+    });
+
+    it("should log but continues in warn mode", async () => {
+      const diagnostics: DiagnosticEvent[] = [];
+      const warnBus = createPubSub({
+        validationMode: "warn",
+        onDiagnostic: (event) => diagnostics.push(event),
+      });
+      const received: Message[] = [];
+
+      warnBus.registerSchema("test@1", {
+        type: "object",
+        properties: { value: { type: "number" } },
+        required: ["value"],
+      });
+      warnBus.subscribe("test", (msg) => received.push(msg));
+      warnBus.publish("test", {}, { schemaVersion: "test@1" });
+      await flushMicrotasks();
+
+      expect(received).toHaveLength(1);
+
+      const validationError = diagnostics.find((d) => d.type === "validation-error");
+      expect(validationError).toBeDefined();
+
+      warnBus.dispose();
+    });
+
+    it("should throw in strict mode when schema not registered", () => {
+      const strictBus = createPubSub({ validationMode: "strict" });
+
+      expect(() => {
+        strictBus.publish("test", {}, { schemaVersion: "unknown@1" });
+      }).toThrow("not registered");
+
+      strictBus.dispose();
+    });
+
+    it("should skip validation when mode is off", () => {
+      expect(() => {
+        bus.publish("test", {}, { schemaVersion: "unknown@1" });
+      }).not.toThrow();
+    });
+  });
 });

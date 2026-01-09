@@ -1,4 +1,4 @@
-import { MessageId } from "./types";
+import { MessageId, RegexSafetyCheck } from "./types";
 
 /**
  * Properties that could enable prototype pollution attacks.
@@ -7,6 +7,17 @@ import { MessageId } from "./types";
  * @see https://portswigger.net/web-security/prototype-pollution
  */
 const DANGEROUS_PROPERTIES = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * Maximum allowed length for regex patterns to prevent extremely long patterns.
+ */
+export const MAX_PATTERN_LENGTH = 256;
+
+/**
+ * Maximum allowed length for strings being tested against regex.
+ * Long strings combined with complex patterns can cause exponential backtracking.
+ */
+export const MAX_REGEX_TEST_STRING_LENGTH = 10_000;
 
 /**
  * Check if a property name is potentially dangerous for prototype pollution.
@@ -33,6 +44,18 @@ export function isDangerousProperty(key: string): boolean {
  */
 export function hasOwnProperty(obj: object, key: string): boolean {
   return Object.hasOwn(obj, key);
+}
+
+/**
+ * Retrieve an object's own string-keyed property names (including non-enumerable).
+ * Wrapper around Object.getOwnPropertyNames for clarity and centralized handling.
+ * Note: does not return inherited properties or symbol-keyed properties.
+ *
+ * @param obj - Target object
+ * @returns Array of own property names
+ */
+export function getOwnPropertyNames(obj: object): string[] {
+  return Object.getOwnPropertyNames(obj);
 }
 
 /**
@@ -127,4 +150,100 @@ function fallbackId(): string {
  */
 export function getTimestamp(): number {
   return Date.now();
+}
+
+/**
+ * Detect potentially dangerous regex patterns that could cause ReDoS.
+ *
+ * Evil Regex patterns include:
+ * - Nested quantifiers: (a+)+, (a*)+, (a+)*, ([a-z]+)*
+ * - Overlapping alternations: (a|aa)+, (a|a?)+
+ * - Repetition of repetition groups
+ *
+ * @param pattern - Regex pattern string to check
+ *
+ * @returns Object indicating if pattern is unsafe and why
+ *
+ * @see https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS
+ *
+ * @example
+ * const check = isUnsafeRegexPattern('(a+)+');
+ * if (check.unsafe) {
+ *   throw new Error(`Unsafe pattern: ${check.reason}`);
+ * }
+ */
+export function isUnsafeRegexPattern(pattern: string): RegexSafetyCheck {
+  if (pattern.length > MAX_PATTERN_LENGTH) {
+    return {
+      unsafe: true,
+      reason: `Pattern exceeds maximum length of ${MAX_PATTERN_LENGTH} characters.`,
+    };
+  }
+
+  // Detect nested quantifiers: (...)+ or (...)* followed by + or *
+  // These are the primary cause of catastrophic backtracking
+  const nestedQuantifierPattern = /\([^)]*[+*][^)]*\)[+*?]|\([^)]*[+*?]\)[+*]/;
+  if (nestedQuantifierPattern.test(pattern)) {
+    return {
+      unsafe: true,
+      reason: "Pattern contains nested quantifiers which can cause catastrophic backtracking.",
+    };
+  }
+
+  // Detect repetition of groups containing alternation with overlap potential
+  // e.g. (a|aa)+, (a|a?)+, (ab|a)+
+  const overlappingAlternation = /\([^)]*\|[^)]*\)[+*]/;
+  if (overlappingAlternation.test(pattern)) {
+    // More specific check for truly overlapping patterns
+    const groupMatch = pattern.match(/\(([^)]+)\)[+*]/g);
+    if (groupMatch) {
+      for (const group of groupMatch) {
+        const inner = group.slice(1, -2); // Remove ( and )+/*
+        const alternatives = inner.split("|");
+        // Check if any alternative is a prefix of another (overlap)
+        for (let i = 0; i < alternatives.length; i++) {
+          for (let j = 0; j < alternatives.length; j++) {
+            if (i !== j && alternatives[j].startsWith(alternatives[i])) {
+              return {
+                unsafe: true,
+                reason:
+                  "Pattern contains overlapping alternations which can cause catastrophic backtracking",
+              };
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Detect character class with quantifier inside repeated group
+  // e.g. ([a-z]+)+, (\w+)+, (\d*)+
+  const charClassQuantifierInGroup =
+    /\(\[[^\]]*\][+*][^)]*\)[+*]|\([^)]*[+*][^)]*\[[^\]]*\][^)]*\)[+*]/;
+  if (charClassQuantifierInGroup.test(pattern)) {
+    return {
+      unsafe: true,
+      reason: "Pattern contains character class with quantifier in repeated group",
+    };
+  }
+
+  // Detect common evil patterns
+  const evilPatterns: Array<{ pattern: RegExp; reason: string }> = [
+    { pattern: /\(\.\*\)[+*]/, reason: "(.*)+  or (.*)* pattern" },
+    { pattern: /\(\.\+\)[+*]/, reason: "(.+)+  or (.+)* pattern" },
+    { pattern: /\(\\s\+\)[+*]/, reason: "(\\s+)+ or (\\s+)* pattern" },
+    { pattern: /\(\\w\+\)[+*]/, reason: "(\\w+)+ or (\\w+)* pattern" },
+    { pattern: /\(\\d\+\)[+*]/, reason: "(\\d+)+ or (\\d+)* pattern" },
+  ];
+
+  for (const evil of evilPatterns) {
+    if (evil.pattern.test(pattern)) {
+      return {
+        unsafe: true,
+        reason: `Pattern contains a known evil regex pattern: ${evil.reason}`,
+      };
+    }
+  }
+
+  return { unsafe: false };
 }

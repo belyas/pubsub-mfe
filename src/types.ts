@@ -494,3 +494,13 @@ export interface BusHooks {
   onPublish(listener: (message: Message) => void): Unsubscribe;
   dispatchExternal(message: Message): void;
 }
+
+/**
+ * Result of checking a regex pattern for ReDoS vulnerabilities.
+ */
+export interface RegexSafetyCheck {
+  /** Whether the pattern is potentially unsafe */
+  unsafe: boolean;
+  /** Human-readable reason if unsafe */
+  reason?: string;
+}

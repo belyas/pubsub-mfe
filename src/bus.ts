@@ -1,4 +1,5 @@
 import { RetentionRingBuffer } from "./retention-buffer";
+import { hasSchema, registerSchema, validateAgainstVersion } from "./schema-validator";
 import {
   clearMatcherCache,
   compileMatcher,
@@ -222,7 +223,7 @@ export class PubSubBusImpl implements PubSubBus {
     }
 
     if (options.schemaVersion) {
-      // this.validatePayload(payload, options.schemaVersion, topic);
+      this.validatePayload(payload, options.schemaVersion, topic);
     }
 
     const message: Message<T> = {
@@ -263,8 +264,10 @@ export class PubSubBusImpl implements PubSubBus {
     return message;
   }
 
-  registerSchema(_schemaVersion: SchemaVersion, _schema: JsonSchema) {
+  registerSchema(schemaVersion: SchemaVersion, schema: JsonSchema) {
     this.assertNotDisposed("registerSchema");
+    registerSchema(schemaVersion, schema);
+    this.debug("Schema registered", { schemaVersion });
   }
 
   handlerCount(pattern?: TopicPattern) {
@@ -317,6 +320,54 @@ export class PubSubBusImpl implements PubSubBus {
       },
       dispatchExternal(_message: Message) {},
     };
+  }
+
+  private validatePayload<T>(payload: T, schemaVersion: SchemaVersion, topic: Topic): void {
+    const mode = this.config.validationMode;
+
+    if (mode === "off") {
+      return;
+    }
+
+    if (!hasSchema(schemaVersion)) {
+      const message = `Schema "${schemaVersion}" is not registered.`;
+      if (mode === "strict") {
+        throw new Error(message);
+      }
+
+      this.emitDiagnostic({
+        type: "warning",
+        code: "SCHEMA_NOT_FOUND",
+        message,
+        details: { schemaVersion, topic },
+      });
+      return;
+    }
+
+    const result = validateAgainstVersion(payload, schemaVersion);
+
+    if (!result.valid && result.errors) {
+      this.emitDiagnostic({
+        type: "validation-error",
+        topic,
+        schemaVersion,
+        errors: result.errors,
+        mode,
+      });
+
+      if (mode === "strict") {
+        const errorMessages = result.errors.map((e) => `${e.path}: ${e.message}`).join("; ");
+
+        throw new Error(`Validation failed for schema "${schemaVersion}": ${errorMessages}`);
+      }
+
+      if (this.config.debug) {
+        console.warn(`[PubSub] Validation warning on topic "${topic}"`, {
+          schemaVersion,
+          errors: result.errors,
+        });
+      }
+    }
   }
 
   private removeSubscription(pattern: TopicPattern, subscription: Subscription): void {
