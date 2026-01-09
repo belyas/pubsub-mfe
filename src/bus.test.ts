@@ -480,4 +480,238 @@ describe("PubSubBus", () => {
       diagBus.dispose();
     });
   });
+
+  describe("Message retention and replay", () => {
+    it("should replay retained messages to new subscriber", () => {
+      const retentionBus = createPubSub({
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("cart.item.add", { sku: "A" });
+      retentionBus.publish("cart.item.add", { sku: "B" });
+      retentionBus.publish("cart.item.add", { sku: "C" });
+
+      const received: Message[] = [];
+
+      retentionBus.subscribe(
+        "cart.item.add",
+        (msg) => {
+          received.push(msg);
+        },
+        { replay: 5 }
+      );
+
+      expect(received).toHaveLength(3);
+      expect(received[0].payload).toEqual({ sku: "A" });
+      expect(received[1].payload).toEqual({ sku: "B" });
+      expect(received[2].payload).toEqual({ sku: "C" });
+
+      retentionBus.dispose();
+    });
+
+    it("should replay only last N messages when more are available", () => {
+      const retentionBus = createPubSub({
+        retention: { maxMessages: 10 },
+      });
+
+      for (let i = 1; i <= 5; i++) {
+        retentionBus.publish("events", { n: i });
+      }
+
+      const received: Message[] = [];
+      retentionBus.subscribe(
+        "events",
+        (msg) => {
+          received.push(msg);
+        },
+        { replay: 2 }
+      );
+
+      expect(received).toHaveLength(2);
+      expect(received[0].payload).toEqual({ n: 4 });
+      expect(received[1].payload).toEqual({ n: 5 });
+
+      retentionBus.dispose();
+    });
+
+    it("should respect circular buffer limit", () => {
+      const retentionBus = createPubSub({
+        retention: { maxMessages: 3 },
+      });
+
+      for (let i = 1; i <= 5; i++) {
+        retentionBus.publish("events", { n: i });
+      }
+
+      const received: Message[] = [];
+
+      retentionBus.subscribe(
+        "events",
+        (msg) => {
+          received.push(msg);
+        },
+        { replay: 10 }
+      );
+
+      expect(received).toHaveLength(3);
+      expect(received[0].payload).toEqual({ n: 3 });
+      expect(received[1].payload).toEqual({ n: 4 });
+      expect(received[2].payload).toEqual({ n: 5 });
+
+      retentionBus.dispose();
+    });
+
+    it("should replay only messages matching the pattern", () => {
+      const retentionBus = createPubSub({
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("cart.item.add", { item: 1 });
+      retentionBus.publish("user.login", { user: "a" });
+      retentionBus.publish("cart.item.remove", { item: 2 });
+      retentionBus.publish("user.logout", { user: "a" });
+      retentionBus.publish("cart.checkout.start", { total: 100 });
+
+      const received: Message[] = [];
+
+      retentionBus.subscribe(
+        "cart.#",
+        (msg) => {
+          received.push(msg);
+        },
+        { replay: 10 }
+      );
+
+      expect(received).toHaveLength(3);
+      expect(received[0].topic).toBe("cart.item.add");
+      expect(received[1].topic).toBe("cart.item.remove");
+      expect(received[2].topic).toBe("cart.checkout.start");
+
+      retentionBus.dispose();
+    });
+
+    it("should replay with single-level wildcard", () => {
+      const retentionBus = createPubSub({
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("cart.item.update", { a: 1 });
+      retentionBus.publish("cart.promo.update", { b: 2 });
+      retentionBus.publish("cart.item.detail.update", { c: 3 });
+
+      const received: Message[] = [];
+      retentionBus.subscribe(
+        "cart.+.update",
+        (msg) => {
+          received.push(msg);
+        },
+        { replay: 10 }
+      );
+
+      expect(received).toHaveLength(2);
+      expect(received[0].topic).toBe("cart.item.update");
+      expect(received[1].topic).toBe("cart.promo.update");
+
+      retentionBus.dispose();
+    });
+
+    it("should do nothing when retention is not configured", () => {
+      const received: Message[] = [];
+
+      bus.publish("test", { before: true });
+      bus.subscribe(
+        "test",
+        (msg) => {
+          received.push(msg);
+        },
+        { replay: 5 }
+      );
+
+      // No replay since retention is not configured
+      expect(received).toHaveLength(0);
+    });
+
+    it("should respect TTL when replaying", async () => {
+      const retentionBus = createPubSub({
+        retention: { maxMessages: 10, ttlMs: 50 }, // 50ms TTL
+      });
+
+      retentionBus.publish("events", { n: 1 });
+
+      // Wait for message to expire
+      await new Promise((r) => setTimeout(r, 70));
+
+      retentionBus.publish("events", { n: 2 });
+
+      const received: Message[] = [];
+
+      retentionBus.subscribe(
+        "events",
+        (msg) => {
+          received.push(msg);
+        },
+        { replay: 10 }
+      );
+
+      expect(received).toHaveLength(1);
+      expect(received[0].payload).toEqual({ n: 2 });
+
+      retentionBus.dispose();
+    });
+
+    it("should continue to receive live messages after replay", async () => {
+      const retentionBus = createPubSub({
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("events", { type: "old" });
+
+      const received: Message[] = [];
+
+      retentionBus.subscribe(
+        "events",
+        (msg) => {
+          received.push(msg);
+        },
+        { replay: 5 }
+      );
+
+      expect(received).toHaveLength(1);
+      expect(received[0].payload).toEqual({ type: "old" });
+
+      retentionBus.publish("events", { type: "new" });
+      await flushMicrotasks();
+
+      // Should have both old (replay) and new (live)
+      expect(received).toHaveLength(2);
+      expect(received[1].payload).toEqual({ type: "new" });
+
+      retentionBus.dispose();
+    });
+
+    it("should clear retention buffer on clear()", () => {
+      const retentionBus = createPubSub({
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("events", { a: 1 });
+      retentionBus.publish("events", { b: 2 });
+
+      retentionBus.clear();
+
+      const received: Message[] = [];
+
+      retentionBus.subscribe(
+        "events",
+        (msg) => {
+          received.push(msg);
+        },
+        { replay: 10 }
+      );
+
+      expect(received).toHaveLength(0);
+
+      retentionBus.dispose();
+    });
+  });
 });
