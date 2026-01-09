@@ -714,4 +714,115 @@ describe("PubSubBus", () => {
       retentionBus.dispose();
     });
   });
+
+  describe("Rate limiting", () => {
+    it("should allow messages within rate limit", async () => {
+      const rateLimitedBus = createPubSub({
+        app: "rate-test",
+        rateLimit: { maxPerSecond: 10, maxBurst: 5 },
+      });
+
+      const received: Message[] = [];
+
+      rateLimitedBus.subscribe("test.topic", (msg) => received.push(msg));
+
+      for (let i = 0; i < 5; i++) {
+        rateLimitedBus.publish("test.topic", { index: i });
+      }
+
+      await flushMicrotasks();
+
+      expect(received).toHaveLength(5);
+
+      rateLimitedBus.dispose();
+    });
+
+    it("should drop messages when rate limit exceeded with drop mode", async () => {
+      const diagnosticEvents: DiagnosticEvent[] = [];
+      const rateLimitedBus = createPubSub({
+        app: "rate-test",
+        rateLimit: { maxPerSecond: 5, maxBurst: 3, onExceeded: "drop" },
+        onDiagnostic: (event) => diagnosticEvents.push(event),
+      });
+
+      const received: Message[] = [];
+
+      rateLimitedBus.subscribe("test.topic", (msg) => received.push(msg));
+
+      for (let i = 0; i < 10; i++) {
+        rateLimitedBus.publish("test.topic", { index: i });
+      }
+
+      await flushMicrotasks();
+
+      // Only first 3 should be delivered (burst limit)
+      expect(received).toHaveLength(3);
+
+      // Should have rate-limited diagnostics
+      const rateLimitedEvents = diagnosticEvents.filter((e) => e.type === "rate-limited");
+
+      expect(rateLimitedEvents.length).toBeGreaterThan(0);
+
+      rateLimitedBus.dispose();
+    });
+
+    it("should throw error when rate limit exceeded with throw mode", () => {
+      const rateLimitedBus = createPubSub({
+        app: "rate-test",
+        rateLimit: { maxPerSecond: 5, maxBurst: 2, onExceeded: "throw" },
+      });
+
+      rateLimitedBus.publish("test.topic", { index: 0 });
+      rateLimitedBus.publish("test.topic", { index: 1 });
+
+      expect(() => {
+        rateLimitedBus.publish("test.topic", { index: 2 });
+      }).toThrow(/rate limit exceeded/i);
+
+      rateLimitedBus.dispose();
+    });
+
+    it("should refill tokens over time", async () => {
+      const rateLimitedBus = createPubSub({
+        app: "rate-test",
+        rateLimit: { maxPerSecond: 1000, maxBurst: 2 }, // High rate so tokens refill quickly
+      });
+
+      const received: Message[] = [];
+
+      rateLimitedBus.subscribe("test.topic", (msg) => received.push(msg));
+
+      // Exhaust burst tokens
+      rateLimitedBus.publish("test.topic", { index: 0 });
+      rateLimitedBus.publish("test.topic", { index: 1 });
+
+      // Wait a bit for tokens to refill (at 1000/sec, 10ms = 10 tokens)
+      await new Promise((resolve) => setTimeout(resolve, 15));
+
+      rateLimitedBus.publish("test.topic", { index: 2 });
+
+      await flushMicrotasks();
+
+      expect(received).toHaveLength(3);
+
+      rateLimitedBus.dispose();
+    });
+
+    it("should mark rate-limited messages with meta flag in drop mode", () => {
+      const rateLimitedBus = createPubSub({
+        app: "rate-test",
+        rateLimit: { maxPerSecond: 5, maxBurst: 1, onExceeded: "drop" },
+      });
+      const msg1 = rateLimitedBus.publish("test.topic", { index: 0 });
+
+      expect(msg1.meta?._rateLimited).toBeUndefined();
+
+      // Second message is rate-limited
+      const msg2 = rateLimitedBus.publish("test.topic", { index: 1 });
+
+      expect(msg2.meta?._rateLimited).toBe(true);
+
+      rateLimitedBus.dispose();
+    });
+  });
 });
