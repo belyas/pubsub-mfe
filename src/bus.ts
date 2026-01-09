@@ -267,9 +267,18 @@ export class PubSubBusImpl implements PubSubBus {
     this.assertNotDisposed("registerSchema");
   }
 
-  handlerCount(_pattern?: TopicPattern) {
-    this.assertNotDisposed("handlerCount");
-    return 0;
+  handlerCount(pattern?: TopicPattern) {
+    if (pattern) {
+      return this.subscriptions.get(pattern)?.size ?? 0;
+    }
+
+    let total = 0;
+
+    for (const subs of this.subscriptions.values()) {
+      total += subs.size;
+    }
+
+    return total;
   }
 
   clear() {

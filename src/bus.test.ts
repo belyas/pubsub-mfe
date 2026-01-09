@@ -404,4 +404,42 @@ describe("PubSubBus", () => {
       throwBus.dispose();
     });
   });
+
+  describe("lifecycle", () => {
+    it("should remove all subscriptions", async () => {
+      const received: Message[] = [];
+
+      bus.subscribe("test", (msg) => received.push(msg));
+
+      expect(bus.handlerCount()).toBe(1);
+      bus.clear();
+      expect(bus.handlerCount()).toBe(0);
+
+      bus.publish("test", {});
+      await flushMicrotasks();
+      expect(received).toHaveLength(0);
+    });
+
+    it("should 'dispose' prevent further operations", () => {
+      bus.dispose();
+
+      expect(() => bus.subscribe("test", () => {})).toThrow(
+        "Cannot subscribe: bus has been disposed."
+      );
+      expect(() => bus.publish("test", {})).toThrow("Cannot publish: bus has been disposed.");
+    });
+
+    it("should 'handlerCount' return correct counts", () => {
+      expect(bus.handlerCount()).toBe(0);
+
+      bus.subscribe("topic1", () => {});
+      expect(bus.handlerCount()).toBe(1);
+      expect(bus.handlerCount("topic1")).toBe(1);
+      expect(bus.handlerCount("topic2")).toBe(0);
+
+      bus.subscribe("topic1", () => {});
+      bus.subscribe("topic2", () => {});
+      expect(bus.handlerCount()).toBe(3);
+    });
+  });
 });
