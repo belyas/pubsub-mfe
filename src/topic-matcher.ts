@@ -142,7 +142,7 @@ function matchSegments(
  */
 export function validatePublishTopic(topic: Topic): void {
   if (!topic || typeof topic !== "string") {
-    throw new Error(`Invalid topic: ${topic}`);
+    throw new Error(`Invalid topic: ${topic || "empty"}.`);
   }
 
   if (topic.includes(SINGLE_WILDCARD) || topic.includes(MULTI_WILDCARD)) {

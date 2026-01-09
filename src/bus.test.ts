@@ -405,7 +405,7 @@ describe("PubSubBus", () => {
     });
   });
 
-  describe("lifecycle", () => {
+  describe("Lifecycle", () => {
     it("should remove all subscriptions", async () => {
       const received: Message[] = [];
 
@@ -440,6 +440,44 @@ describe("PubSubBus", () => {
       bus.subscribe("topic1", () => {});
       bus.subscribe("topic2", () => {});
       expect(bus.handlerCount()).toBe(3);
+    });
+  });
+
+  describe("Topic validation", () => {
+    it("should reject publish with wildcards", () => {
+      expect(() => bus.publish("cart.+.add", {})).toThrow(
+        'Invalid publish topic "cart.+.add": wildcards (+ or #) are not allowed in publish topics. Use exact topic names for publishing.'
+      );
+      expect(() => bus.publish("cart.#", {})).toThrow(
+        'Invalid publish topic "cart.#": wildcards (+ or #) are not allowed in publish topics. Use exact topic names for publishing.'
+      );
+    });
+
+    it("should reject empty topics", () => {
+      expect(() => bus.publish("", {})).toThrow("Invalid topic: empty.");
+    });
+
+    it("should reject topics with empty segments", () => {
+      expect(() => bus.publish("cart..item", {})).toThrow(
+        'Invalid topic "cart..item": empty segment at position 1'
+      );
+    });
+
+    it("should emit diagnostic when topic validation fails", () => {
+      const diagnostics: DiagnosticEvent[] = [];
+      const diagBus = createPubSub({
+        onDiagnostic: (event) => diagnostics.push(event),
+      });
+
+      expect(() => diagBus.publish("cart.+.add", {})).toThrow(
+        'Invalid publish topic "cart.+.add": wildcards (+ or #) are not allowed in publish topics. Use exact topic names for publishing.'
+      );
+
+      const warning = diagnostics.find((d) => d.type === "warning");
+      expect(warning).toBeDefined();
+      expect(warning?.message).toContain("wildcards");
+
+      diagBus.dispose();
     });
   });
 });
