@@ -903,4 +903,38 @@ describe("PubSubBus", () => {
       }).not.toThrow();
     });
   });
+
+  describe("Message metadata", () => {
+    it("should include source and correlationId in meta", async () => {
+      const received: Message[] = [];
+
+      bus.subscribe("test", (msg) => received.push(msg));
+      bus.publish(
+        "test",
+        { value: 1 },
+        {
+          source: "cart-mfe",
+          correlationId: "request-123",
+        }
+      );
+
+      await flushMicrotasks();
+
+      expect(received[0].meta?.source).toBe("cart-mfe");
+      expect(received[0].meta?.correlationId).toBe("request-123");
+    });
+
+    it("should include schemaVersion when specified", async () => {
+      bus.registerSchema("test@1", { type: "object" });
+
+      const received: Message[] = [];
+
+      bus.subscribe("test", (msg) => received.push(msg));
+      bus.publish("test", {}, { schemaVersion: "test@1" });
+
+      await flushMicrotasks();
+
+      expect(received[0].schemaVersion).toBe("test@1");
+    });
+  });
 });
