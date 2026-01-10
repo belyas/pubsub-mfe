@@ -1,5 +1,10 @@
 import { RetentionRingBuffer } from "./retention-buffer";
-import { hasSchema, registerSchema, validateAgainstVersion } from "./schema-validator";
+import {
+  clearSchemas,
+  hasSchema,
+  registerSchema,
+  validateAgainstVersion,
+} from "./schema-validator";
 import {
   clearMatcherCache,
   compileMatcher,
@@ -624,5 +629,6 @@ export function createPubSub(config?: PubSubConfig): PubSubBus {
  * Use only in tests!
  */
 export function __resetForTesting(): void {
+  clearSchemas();
   clearMatcherCache();
 }

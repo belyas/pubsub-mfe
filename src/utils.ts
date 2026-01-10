@@ -247,3 +247,19 @@ export function isUnsafeRegexPattern(pattern: string): RegexSafetyCheck {
 
   return { unsafe: false };
 }
+
+/**
+ * Validate that a string is a valid MessageId format.
+ * Useful for debugging and testing.
+ */
+export function isValidMessageId(id: string): id is MessageId {
+  if (!id || typeof id !== "string") return false;
+
+  // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  // Fallback format: timestamp-counter-random (e.g., "1a2b3c4d-0-abc123xy")
+  const fallbackRegex = /^[0-9a-z]+-[0-9a-z]+-[0-9a-z]+$/i;
+
+  return uuidRegex.test(id) || fallbackRegex.test(id);
+}
