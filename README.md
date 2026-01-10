@@ -1,4 +1,4 @@
-# @yb/pubsub-mfe
+# @belyas/pubsub-mfe
 
 > Browser-native Pub/Sub for microfrontends — zero dependencies, MQTT-style wildcards, optional schema validation.
 
@@ -18,13 +18,13 @@ A production-grade publish/subscribe bus designed for microfrontend architecture
 ## Installation
 
 ```bash
-npm install @yb/pubsub-mfe
+npm install @belyas/pubsub-mfe
 ```
 
 ## Quick Start
 
 ```typescript
-import { createPubSub } from '@yb/pubsub-mfe';
+import { createPubSub } from '@belyas/pubsub-mfe';
 
 // Create a bus instance
 const bus = createPubSub({ app: 'my-app' });
@@ -269,7 +269,7 @@ registerSchema('email@1', {
 Strings are limited to 10,000 characters for regex pattern matching to prevent DoS via long inputs.
 
 ```typescript
-import { isUnsafeRegexPattern } from '@yb/pubsub-intra-page';
+import { isUnsafeRegexPattern } from '@belyas/pubsub-intra-page';
 
 // Check if a pattern is safe before using it:
 const check = isUnsafeRegexPattern('(a+)+');
