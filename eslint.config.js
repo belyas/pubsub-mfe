@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import parser from '@typescript-eslint/parser';
+import browserSecurity from 'eslint-plugin-browser-security';
 
 export default [
   js.configs.recommended,
@@ -25,6 +26,7 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tseslint,
+      'browser-security': browserSecurity,
     },
     rules: {
       ...tseslint.configs.recommended.rules,
@@ -40,6 +42,14 @@ export default [
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-non-null-assertion': 'warn',
+      // Security rules
+      'browser-security/no-eval': 'error',
+      'browser-security/no-innerhtml': 'error',
+      'browser-security/require-postmessage-origin-check': 'error',
+      'browser-security/no-postmessage-wildcard-origin': 'error',
+      'browser-security/no-sensitive-localstorage': 'error',
+      'browser-security/no-sensitive-indexeddb': 'error',
+
     },
   },
   {
