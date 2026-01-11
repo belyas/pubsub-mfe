@@ -110,8 +110,8 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
  * @returns MessageId
  */
 export function generateMessageId(): MessageId {
-  if (typeof window.crypto !== "undefined" && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
+  if (typeof globalThis.crypto !== "undefined" && typeof globalThis.crypto.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
   }
 
   // Fallback: timestamp + random (less collision-resistant but functional)
@@ -126,9 +126,9 @@ export function generateMessageId(): MessageId {
 let fallbackCounter = 0;
 
 function fallbackId(): string {
-  if (typeof window.crypto !== "undefined" && typeof window.crypto.getRandomValues === "function") {
+  if (typeof globalThis.crypto !== "undefined" && typeof globalThis.crypto.getRandomValues === "function") {
     const bytes = new Uint8Array(16);
-    window.crypto.getRandomValues(bytes);
+    globalThis.crypto.getRandomValues(bytes);
     // Set version (4) and variant (8, 9, a, or b)
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
