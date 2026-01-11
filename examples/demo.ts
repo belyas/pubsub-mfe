@@ -185,6 +185,41 @@ async function demo() {
 
   console.log('\n  → Late subscribers received historical messages from retention buffer\n');
 
+  console.log('═'.repeat(60));
+  console.log('📜 Testing getHistory method...\n');
+
+  // Query history for all orders
+  console.log('  🔍 Querying history for "orders.#" pattern:');
+  const orderHistory = await retentionBus.getHistory('orders.#');
+  console.log(`    Found ${orderHistory.length} messages:`);
+  orderHistory.forEach((msg, idx) => {
+    console.log(`      ${idx + 1}. ${msg.topic} → ${JSON.stringify(msg.payload)}`);
+  });
+
+  // Query with exact topic
+  console.log('\n  🔍 Querying history for exact topic "orders.created":');
+  const createdOrders = await retentionBus.getHistory('orders.created');
+  console.log(`    Found ${createdOrders.length} messages:`);
+  createdOrders.forEach((msg) => {
+    console.log(`      - orderId: ${(msg.payload as { orderId: string }).orderId}, total: ${(msg.payload as { orderId: string; total: number }).total}`);
+  });
+
+  // Query with limit
+  console.log('\n  🔍 Querying last 2 inventory messages:');
+  const recentInventory = await retentionBus.getHistory('inventory.+', { limit: 2 });
+  console.log(`    Found ${recentInventory.length} messages:`);
+  recentInventory.forEach((msg) => {
+    console.log(`      - ${msg.topic}: sku ${(msg.payload as { sku: string }).sku}, qty ${(msg.payload as { sku: string; qty: number }).qty}`);
+  });
+
+  // Query with time filter
+  const recentTime = Date.now() - 5000; // Messages from last 5 seconds
+  console.log('\n  🔍 Querying messages from last 5 seconds (fromTime: ' + recentTime + '):');
+  const recentMessages = await retentionBus.getHistory('orders.#', { fromTime: recentTime });
+  console.log('    Found ' + recentMessages.length + ' messages (all recent)');
+
+  console.log('\n  → getHistory provides flexible querying of retained messages\n');
+
   retentionBus.dispose();
 
   console.log('═'.repeat(60));

@@ -275,6 +275,35 @@ export class PubSubBusImpl implements PubSubBus {
     this.debug("Schema registered", { schemaVersion });
   }
 
+  /**
+   * Get message history for a topic
+   */
+  async getHistory<T = unknown>(
+    topic: Topic,
+    options: { fromTime?: number; limit?: number } = {}
+  ): Promise<Message<T>[]> {
+    this.assertNotDisposed("getHistory");
+
+    if (!this.retentionBuffer) {
+      return [];
+    }
+
+    const now = getTimestamp();
+    let messages = this.retentionBuffer.getMessages(now - 300_000);
+    const matcher = compileMatcher(topic);
+    messages = messages.filter((msg) => matchTopic(msg.topic, matcher));
+
+    if (options.fromTime !== undefined) {
+      messages = messages.filter((msg) => msg.ts >= (options.fromTime ?? 0));
+    }
+
+    if (options.limit !== undefined && options.limit > 0) {
+      messages = messages.slice(-options.limit);
+    }
+
+    return messages as Message<T>[];
+  }
+
   handlerCount(pattern?: TopicPattern) {
     if (pattern) {
       return this.subscriptions.get(pattern)?.size ?? 0;

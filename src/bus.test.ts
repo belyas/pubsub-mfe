@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createPubSub, __resetForTesting } from "./bus";
 import type { DiagnosticEvent, Message, PubSubBus } from "./types";
 
@@ -6,7 +6,7 @@ import type { DiagnosticEvent, Message, PubSubBus } from "./types";
  * Flush pending microtasks to allow async dispatch to complete.
  */
 function flushMicrotasks(): Promise<void> {
-  return new Promise((resolve) => window.queueMicrotask(resolve));
+  return new Promise((resolve) => globalThis.queueMicrotask(resolve));
 }
 
 describe("PubSubBus", () => {
@@ -935,6 +935,215 @@ describe("PubSubBus", () => {
       await flushMicrotasks();
 
       expect(received[0].schemaVersion).toBe("test@1");
+    });
+  });
+
+  describe("getHistory", () => {
+    it("should return empty array when no retention buffer is configured", async () => {
+      const history = await bus.getHistory("test.topic");
+
+      expect(history).toEqual([]);
+    });
+
+    it("should return messages for exact topic match", async () => {
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("cart.item.add", { sku: "ABC" });
+      retentionBus.publish("cart.item.add", { sku: "DEF" });
+      retentionBus.publish("cart.item.remove", { sku: "GHI" });
+
+      const history = await retentionBus.getHistory("cart.item.add");
+
+      expect(history).toHaveLength(2);
+      expect(history[0].payload).toEqual({ sku: "ABC" });
+      expect(history[1].payload).toEqual({ sku: "DEF" });
+
+      retentionBus.dispose();
+    });
+
+    it("should filter messages by single-level wildcard pattern", async () => {
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("cart.item.add", { sku: "ABC" });
+      retentionBus.publish("cart.item.update", { sku: "DEF" });
+      retentionBus.publish("cart.checkout.submit", { orderId: "123" });
+
+      const history = await retentionBus.getHistory("cart.item.+");
+
+      expect(history).toHaveLength(2);
+      expect(history[0].topic).toBe("cart.item.add");
+      expect(history[1].topic).toBe("cart.item.update");
+
+      retentionBus.dispose();
+    });
+
+    it("should filter messages by multi-level wildcard pattern", async () => {
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("cart.item.add", { sku: "ABC" });
+      retentionBus.publish("cart.item.update", { sku: "DEF" });
+      retentionBus.publish("cart.checkout.submit", { orderId: "123" });
+      retentionBus.publish("cart.checkout.complete", { orderId: "123" });
+      retentionBus.publish("user.login", { userId: "456" });
+
+      const history = await retentionBus.getHistory("cart.#");
+
+      expect(history).toHaveLength(4);
+      expect(history.every((msg) => msg.topic.startsWith("cart."))).toBe(true);
+
+      retentionBus.dispose();
+    });
+
+    it("should apply fromTime filter", async () => {
+      vi.useFakeTimers();
+
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("test.topic", { message: "before" });
+
+      // Advance time by 10ms
+      vi.advanceTimersByTime(10);
+
+      const afterTime = Date.now();
+      retentionBus.publish("test.topic", { message: "after1" });
+      retentionBus.publish("test.topic", { message: "after2" });
+
+      const history = await retentionBus.getHistory("test.topic", {
+        fromTime: afterTime,
+      });
+
+      expect(history).toHaveLength(2);
+      expect(history[0].payload).toEqual({ message: "after1" });
+      expect(history[1].payload).toEqual({ message: "after2" });
+      expect(history.every((msg) => msg.ts >= afterTime)).toBe(true);
+
+      retentionBus.dispose();
+      vi.useRealTimers();
+    });
+
+    it("should apply limit to return last N messages", async () => {
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: { maxMessages: 10 },
+      });
+
+      for (let i = 0; i < 5; i++) {
+        retentionBus.publish("test.topic", { index: i });
+      }
+
+      const history = await retentionBus.getHistory("test.topic", { limit: 2 });
+
+      expect(history).toHaveLength(2);
+      expect(history[0].payload).toEqual({ index: 3 });
+      expect(history[1].payload).toEqual({ index: 4 });
+
+      retentionBus.dispose();
+    });
+
+    it("should combine fromTime and limit filters", async () => {
+      vi.useFakeTimers();
+
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("test.topic", { message: "before" });
+
+      vi.advanceTimersByTime(10);
+
+      const afterTime = Date.now();
+      retentionBus.publish("test.topic", { message: "after1" });
+      retentionBus.publish("test.topic", { message: "after2" });
+      retentionBus.publish("test.topic", { message: "after3" });
+
+      const history = await retentionBus.getHistory("test.topic", {
+        fromTime: afterTime,
+        limit: 2,
+      });
+
+      expect(history).toHaveLength(2);
+      expect(history[0].payload).toEqual({ message: "after2" });
+      expect(history[1].payload).toEqual({ message: "after3" });
+
+      retentionBus.dispose();
+      vi.useRealTimers();
+    });
+
+    it("should return all messages when limit exceeds available count", async () => {
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: { maxMessages: 10 },
+      });
+
+      retentionBus.publish("test.topic", { index: 0 });
+      retentionBus.publish("test.topic", { index: 1 });
+
+      const history = await retentionBus.getHistory("test.topic", { limit: 100 });
+
+      expect(history).toHaveLength(2);
+
+      retentionBus.dispose();
+    });
+
+    it("should respect retention buffer circular behavior", async () => {
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: { maxMessages: 3 },
+      });
+
+      // Publish 5 messages to a buffer that can only hold 3
+      for (let i = 0; i < 5; i++) {
+        retentionBus.publish("test.topic", { index: i });
+      }
+
+      const history = await retentionBus.getHistory("test.topic");
+
+      // Should only get the last 3 messages
+      expect(history).toHaveLength(3);
+      expect(history[0].payload).toEqual({ index: 2 });
+      expect(history[1].payload).toEqual({ index: 3 });
+      expect(history[2].payload).toEqual({ index: 4 });
+
+      retentionBus.dispose();
+    });
+
+    it("should return messages in chronological order", async () => {
+      vi.useFakeTimers();
+
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: { maxMessages: 10 },
+      });
+
+      for (let i = 0; i < 5; i++) {
+        retentionBus.publish("test.topic", { index: i });
+        // Small delay to ensure different timestamps
+        if (i < 4) vi.advanceTimersByTime(2);
+      }
+
+      const history = await retentionBus.getHistory("test.topic");
+
+      expect(history).toHaveLength(5);
+
+      for (let i = 1; i < history.length; i++) {
+        expect(history[i].ts).toBeGreaterThanOrEqual(history[i - 1].ts);
+      }
+
+      retentionBus.dispose();
+      vi.useRealTimers();
     });
   });
 });

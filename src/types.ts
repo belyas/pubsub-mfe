@@ -462,6 +462,30 @@ export interface PubSubBus {
   registerSchema(schemaVersion: SchemaVersion, schema: JsonSchema): void;
 
   /**
+   * Get message history for a topic pattern.
+   * Returns messages from the in-memory retention buffer.
+   *
+   * Requires `retention.maxMessages` > 0 in bus config.
+   *
+   * @param topic - Topic pattern to filter (supports wildcards)
+   * @param options - History query options
+   *
+   * @returns Promise resolving to array of matching messages
+   *
+   * @example
+   * // Get last 10 cart events from the last 5 minutes
+   * const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+   * const history = await bus.getHistory('cart.#', {
+   *   fromTime: fiveMinutesAgo,
+   *   limit: 10
+   * });
+   */
+  getHistory<T = unknown>(
+    topic: Topic,
+    options?: { fromTime?: number; limit?: number }
+  ): Promise<Message<T>[]>;
+
+  /**
    * Get current handler count for a pattern.
    * Useful for debugging and diagnostics.
    */
