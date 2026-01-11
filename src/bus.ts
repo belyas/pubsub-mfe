@@ -95,7 +95,7 @@ export class PubSubBusImpl implements PubSubBus {
     if (this.config.rateLimit) {
       const burst = this.config.rateLimit.maxBurst ?? this.config.rateLimit.maxPerSecond;
       this.rateLimitTokens = burst;
-      this.rateLimitLastRefill = window.performance.now();
+      this.rateLimitLastRefill = globalThis.performance.now();
     }
 
     this.debug("PubSubBus initialized", { app: this.config.app });
@@ -180,7 +180,7 @@ export class PubSubBusImpl implements PubSubBus {
   publish<T = unknown>(topic: Topic, payload: T, options: PublishOptions = {}): Message<T> {
     this.assertNotDisposed("publish");
 
-    const startTime = window.performance.now();
+    const startTime = globalThis.performance.now();
 
     if (this.config.rateLimit && !this.tryConsumeRateLimitToken(topic)) {
       const action = this.config.rateLimit.onExceeded ?? "drop";
@@ -254,7 +254,7 @@ export class PubSubBusImpl implements PubSubBus {
     // Notify publish listeners (for adapters)
     this.notifyPublishListeners(message);
 
-    const durationMs = window.performance.now() - startTime;
+    const durationMs = globalThis.performance.now() - startTime;
 
     this.emitDiagnostic({
       type: "publish",
@@ -506,7 +506,7 @@ export class PubSubBusImpl implements PubSubBus {
     message: Message<T>,
     handlers: Array<{ handler: MessageHandler<T>; index: number }>
   ): void {
-    window.queueMicrotask(() => {
+    globalThis.queueMicrotask(() => {
       for (const { handler, index } of handlers) {
         this.safeInvokeHandler(handler, message, index);
       }
@@ -573,7 +573,7 @@ export class PubSubBusImpl implements PubSubBus {
       return true;
     }
 
-    const now = window.performance.now();
+    const now = globalThis.performance.now();
     const elapsedMs = now - this.rateLimitLastRefill;
     const { maxPerSecond, maxBurst } = this.config.rateLimit;
 
