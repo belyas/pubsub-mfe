@@ -21,6 +21,42 @@ A production-grade publish/subscribe bus designed for microfrontend architecture
 npm install @belyas/pubsub-mfe
 ```
 
+## Build & Development
+
+If you want to build or run the project locally (examples, tests, or to contribute), use the package scripts provided in the repository. The project uses pnpm as the package manager.
+
+### Install dependencies:
+
+```bash
+pnpm install
+```
+
+### Common development tasks:
+
+```bash
+# Build the library (outputs to dist/)
+pnpm run build
+
+# Run the test suite (Vitest)
+pnpm run test
+
+# Run type checking (TS compiler)
+pnpm run typecheck
+
+# Lint the source (ESLint)
+pnpm run lint
+
+# Check/format code (Prettier)
+pnpm run format:check
+pnpm run format
+
+# Run the demo example (TypeScript)
+# Option A: run the compiled example (requires a prior build)
+node examples/demo.mjs
+# Option B: run the TypeScript example directly
+node examples/demo.ts
+```
+
 ## Quick Start
 
 ```typescript
