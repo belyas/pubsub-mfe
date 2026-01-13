@@ -938,7 +938,7 @@ describe("PubSubBus", () => {
     });
   });
 
-  describe("getHistory", () => {
+  describe("GetHistory", () => {
     it("should return empty array when no retention buffer is configured", async () => {
       const history = await bus.getHistory("test.topic");
 
@@ -1144,6 +1144,182 @@ describe("PubSubBus", () => {
 
       retentionBus.dispose();
       vi.useRealTimers();
+    });
+  });
+
+  describe("GetHooks (Adapter Integration)", () => {
+    it("should register and invoke onPublish listener", async () => {
+      const publishedMessages: Message[] = [];
+      const hooks = bus.getHooks();
+
+      const unsubscribe = hooks.onPublish((msg) => {
+        publishedMessages.push(msg);
+      });
+
+      bus.publish("test.topic", { value: 1 });
+      bus.publish("test.topic", { value: 2 });
+      await flushMicrotasks();
+
+      expect(publishedMessages).toHaveLength(2);
+      expect(publishedMessages[0].payload).toEqual({ value: 1 });
+      expect(publishedMessages[1].payload).toEqual({ value: 2 });
+
+      unsubscribe();
+    });
+
+    it("should stop invoking listener after unsubscribe", async () => {
+      const publishedMessages: Message[] = [];
+      const hooks = bus.getHooks();
+
+      const unsubscribe = hooks.onPublish((msg) => {
+        publishedMessages.push(msg);
+      });
+
+      bus.publish("test.topic", { value: 1 });
+      await flushMicrotasks();
+
+      expect(publishedMessages).toHaveLength(1);
+
+      unsubscribe();
+
+      bus.publish("test.topic", { value: 2 });
+      await flushMicrotasks();
+
+      expect(publishedMessages).toHaveLength(1);
+      expect(publishedMessages[0].payload).toEqual({ value: 1 });
+    });
+
+    it("should support multiple onPublish listeners", async () => {
+      const listener1Messages: Message[] = [];
+      const listener2Messages: Message[] = [];
+      const hooks = bus.getHooks();
+
+      const unsub1 = hooks.onPublish((msg) => listener1Messages.push(msg));
+      const unsub2 = hooks.onPublish((msg) => listener2Messages.push(msg));
+
+      bus.publish("test.topic", { value: 1 });
+      await flushMicrotasks();
+
+      expect(listener1Messages).toHaveLength(1);
+      expect(listener2Messages).toHaveLength(1);
+
+      unsub1();
+      unsub2();
+    });
+
+    it("should dispatch external messages to local handlers", async () => {
+      const received: Message[] = [];
+
+      bus.subscribe("remote.topic", (msg) => received.push(msg));
+
+      const hooks = bus.getHooks();
+      const externalMessage: Message = {
+        id: "ext-123",
+        topic: "remote.topic",
+        ts: Date.now(),
+        payload: { from: "another-tab" },
+        meta: { source: "tab-2" },
+      };
+
+      hooks.dispatchExternal(externalMessage);
+      await flushMicrotasks();
+
+      expect(received).toHaveLength(1);
+      expect(received[0].id).toBe("ext-123");
+      expect(received[0].payload).toEqual({ from: "another-tab" });
+    });
+
+    it("should not retain external messages (avoid duplication)", async () => {
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: { maxMessages: 10 },
+      });
+      const hooks = retentionBus.getHooks();
+      const externalMessage: Message = {
+        id: "ext-456",
+        topic: "test.topic",
+        ts: Date.now(),
+        payload: { external: true },
+      };
+
+      hooks.dispatchExternal(externalMessage);
+      await flushMicrotasks();
+
+      // External message should NOT be added to retention buffer
+      const history = await retentionBus.getHistory("test.topic");
+      expect(history).toHaveLength(0);
+
+      retentionBus.dispose();
+    });
+
+    it("should reject invalid external messages", async () => {
+      const received: Message[] = [];
+      bus.subscribe("test.topic", (msg) => received.push(msg));
+
+      const hooks = bus.getHooks();
+
+      // Invalid: missing topic
+      hooks.dispatchExternal({ id: "123", ts: Date.now(), payload: {} } as Message);
+
+      // Invalid: missing id
+      hooks.dispatchExternal({ topic: "test.topic", ts: Date.now(), payload: {} } as Message);
+
+      await flushMicrotasks();
+
+      expect(received).toHaveLength(0); // No invalid messages dispatched
+    });
+
+    it("should respect source filters for external messages", async () => {
+      const received: Message[] = [];
+
+      bus.subscribe("test.topic", (msg) => received.push(msg), {
+        sourceFilter: { exclude: ["tab-2"] },
+      });
+
+      const hooks = bus.getHooks();
+
+      // Should be filtered out
+      hooks.dispatchExternal({
+        id: "ext-1",
+        topic: "test.topic",
+        ts: Date.now(),
+        payload: { value: 1 },
+        meta: { source: "tab-2" },
+      });
+
+      // Should be received
+      hooks.dispatchExternal({
+        id: "ext-2",
+        topic: "test.topic",
+        ts: Date.now(),
+        payload: { value: 2 },
+        meta: { source: "tab-3" },
+      });
+
+      await flushMicrotasks();
+
+      expect(received).toHaveLength(1);
+      expect(received[0].id).toBe("ext-2");
+    });
+
+    it("should throw when calling getHooks on disposed bus", () => {
+      bus.dispose();
+
+      expect(() => bus.getHooks()).toThrow("Cannot getHooks: bus has been disposed.");
+    });
+
+    it("should throw when calling dispatchExternal on disposed bus", () => {
+      const hooks = bus.getHooks();
+      bus.dispose();
+
+      expect(() => {
+        hooks.dispatchExternal({
+          id: "ext-1",
+          topic: "test.topic",
+          ts: Date.now(),
+          payload: {},
+        });
+      }).toThrow("Cannot dispatchExternal: bus has been disposed.");
     });
   });
 });

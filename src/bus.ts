@@ -349,10 +349,43 @@ export class PubSubBusImpl implements PubSubBus {
   getHooks(): BusHooks {
     this.assertNotDisposed("getHooks");
     return {
-      onPublish(_listener: (message: Message) => void): Unsubscribe {
-        return () => {};
+      onPublish: (listener: (message: Message) => void): Unsubscribe => {
+        this.publishListeners.add(listener);
+        this.debug("Publish listener added via hooks", {
+          totalListeners: this.publishListeners.size,
+        });
+
+        return () => {
+          this.publishListeners.delete(listener);
+          this.debug("Publish listener removed via hooks", {
+            totalListeners: this.publishListeners.size,
+          });
+        };
       },
-      dispatchExternal(_message: Message) {},
+      dispatchExternal: <T = unknown>(message: Message<T>) => {
+        this.assertNotDisposed("dispatchExternal");
+
+        if (this.disposed) {
+          return;
+        }
+
+        // Validate the external message
+        if (!message || !message.topic || !message.id) {
+          this.debug("Invalid external message rejected", { message });
+          return;
+        }
+
+        // Find matching handlers but skip retention (already retained by source tab)
+        const matchedHandlers = this.findMatchingHandlers(message.topic, message.meta?.source);
+        // Dispatch to local handlers only
+        this.dispatchToHandlers(message, matchedHandlers);
+
+        this.debug("External message dispatched", {
+          topic: message.topic,
+          messageId: message.id,
+          handlerCount: matchedHandlers.length,
+        });
+      },
     };
   }
 
@@ -558,15 +591,15 @@ export class PubSubBusImpl implements PubSubBus {
 
       if (result instanceof Promise) {
         result.catch((error: Error) => {
-          this.handleHandlerError(error, message, handlerIndex);
+          this.errorHandler(error, message, handlerIndex);
         });
       }
     } catch (error) {
-      this.handleHandlerError(error as Error, message, handlerIndex);
+      this.errorHandler(error as Error, message, handlerIndex);
     }
   }
 
-  private handleHandlerError<T>(error: Error, message: Message<T>, handlerIndex: number): void {
+  private errorHandler<T>(error: Error, message: Message<T>, handlerIndex: number): void {
     this.emitDiagnostic({
       type: "handler-error",
       topic: message.topic,
