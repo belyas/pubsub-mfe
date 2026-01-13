@@ -22,6 +22,7 @@ export default [
         clearInterval: 'readonly',
         process: 'readonly',
         window: 'readonly',
+        document: 'readonly',
       },
     },
     plugins: {
