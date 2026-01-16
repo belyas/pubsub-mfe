@@ -25,6 +25,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./adapters/cross-tab": {
+      "types": "./dist/adapters/cross-tab.d.ts",
+      "import": "./dist/adapters/cross-tab.js"
     }
   },
   "files": [

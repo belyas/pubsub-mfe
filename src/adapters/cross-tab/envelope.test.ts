@@ -205,6 +205,10 @@ describe("Cross-Tab", () => {
 describe("Envelope Validation", () => {
   const mockConfig: ResolvedCrossTabConfig = {
     channelName: "test-channel",
+    transport: {} as any,
+    clientId: "test-client",
+    enableLeadership: false,
+    emitSystemEvents: true,
     transportMode: "broadcast",
     maxMessageSize: 256 * 1024,
     rateLimit: { maxPerSecond: 100, maxBurst: 200 },

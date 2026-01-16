@@ -49,6 +49,25 @@ const workerBundle: RollupOptions = {
   },
 };
 
+const adapterBundle: RollupOptions = {
+  input: "src/adapters/cross-tab/index.ts",
+  output: {
+    file: "dist/adapters/cross-tab.js",
+    format: "esm",
+    sourcemap: true,
+    generatedCode: {
+      constBindings: true,
+    },
+    exports: "named",
+  },
+  plugins: [resolve(), typescriptPlugin],
+  treeshake: {
+    moduleSideEffects: false,
+    propertyReadSideEffects: false,
+    unknownGlobalSideEffects: false,
+  },
+};
+
 const dtsBundle: RollupOptions = {
   input: "src/index.ts",
   output: {
@@ -67,9 +86,18 @@ const workerDtsBundle: RollupOptions = {
   plugins: [dts()],
 };
 
+const adapterDtsBundle: RollupOptions = {
+  input: "src/adapters/cross-tab/index.ts",
+  output: {
+    file: "dist/adapters/cross-tab.d.ts",
+    format: "esm",
+  },
+  plugins: [dts()],
+};
+
 // In watch mode, skip dts bundles for faster iteration
 export default defineConfig(
   isWatchMode
-    ? [mainBundle, workerBundle]
-    : [mainBundle, workerBundle, dtsBundle, workerDtsBundle]
+    ? [mainBundle, workerBundle, adapterBundle]
+    : [mainBundle, workerBundle, adapterBundle, dtsBundle, workerDtsBundle, adapterDtsBundle]
 );

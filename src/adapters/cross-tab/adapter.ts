@@ -1,0 +1,397 @@
+import type { PubSubBus, Message } from "../../types";
+import type { Transport, CrossTabEnvelope, CrossTabAdapterConfig, CrossTabStats } from "./types";
+import { getOrCreateClientId } from "./client-id";
+import { DeduplicationCache } from "./deduplication";
+import { LeadershipDetector } from "./leadership";
+import { ENVELOPE_VERSION, validateAndSanitizeEnvelope } from "./envelope";
+
+/**
+ * Cross-tab adapter that integrates with PubSubBus via hooks.
+ *
+ * Sits alongside the bus (not inside it) and uses the hook system
+ * to intercept published messages and inject received messages.
+ *
+ * @example
+ * ```ts
+ * const bus = new PubSubBus();
+ *
+ * const adapter = new CrossTabAdapter({
+ *   channelName: 'my-app',
+ *   transport: new BroadcastChannelTransport({ channelName: 'my-app' }),
+ * });
+ *
+ * adapter.attach(bus);
+ *
+ * // Now messages are automatically synchronized across tabs
+ * bus.publish({ topic: 'user.login', payload: { userId: 123 } });
+ * ```
+ */
+export class CrossTabAdapter {
+  private readonly transport: Transport;
+  private readonly clientId: string;
+  private readonly deduplicationCache: DeduplicationCache;
+  private readonly leadership: LeadershipDetector | null;
+  private readonly config: Required<CrossTabAdapterConfig>;
+  private bus: PubSubBus | null = null;
+  private unsubscribeOnPublish?: () => void;
+  private unsubscribeTransport?: () => void;
+  private stats = {
+    messagesSent: 0,
+    messagesReceived: 0,
+    messagesDeduplicated: 0,
+    messagesRejected: 0,
+  };
+
+  constructor(config: CrossTabAdapterConfig) {
+    if (!config.transport) {
+      throw new Error("transport is required in CrossTabAdapterConfig");
+    }
+
+    const channelName = config.channelName ?? "pubsub-mfe";
+    const enableLeadership = config.enableLeadership ?? false;
+    const emitSystemEvents = config.emitSystemEvents ?? true;
+    const dedupeWindowMs = config.dedupeWindowMs ?? 60000;
+    const dedupeCacheSize = config.dedupeCacheSize ?? 1000;
+    const maxMessageSize = config.maxMessageSize ?? 262144; // 256KB
+    const expectedOrigin =
+      config.expectedOrigin ??
+      (typeof window !== "undefined" ? window.location.origin : "http://localhost");
+    const debug = config.debug ?? false;
+
+    this.config = {
+      channelName,
+      transport: config.transport,
+      clientId: config.clientId,
+      enableLeadership,
+      emitSystemEvents,
+      transportMode: config.transportMode,
+      maxMessageSize,
+      rateLimit: config.rateLimit,
+      expectedOrigin,
+      dedupeWindowMs,
+      dedupeCacheSize,
+      enableBroker: config.enableBroker,
+      batchIntervalMs: config.batchIntervalMs,
+      compressionThreshold: config.compressionThreshold,
+      onError: config.onError,
+      debug,
+    } as Required<CrossTabAdapterConfig>;
+
+    this.transport = config.transport;
+    this.clientId = config.clientId ?? getOrCreateClientId();
+
+    this.deduplicationCache = new DeduplicationCache({
+      maxEntries: dedupeCacheSize,
+      maxAgeMs: dedupeWindowMs,
+      onDuplicate: (envelope) => {
+        this.stats.messagesDeduplicated++;
+
+        if (debug) {
+          console.log("[CrossTabAdapter] Duplicate message filtered", {
+            messageId: envelope.messageId,
+            clientId: envelope.clientId,
+          });
+        }
+      },
+    });
+
+    this.leadership = enableLeadership
+      ? new LeadershipDetector({
+          clientId: this.clientId,
+          debug,
+          onLeadershipChange: (isLeader) => {
+            if (debug) {
+              console.log("[CrossTabAdapter] Leadership changed", { isLeader });
+            }
+
+            if (this.bus && emitSystemEvents) {
+              this.emitSystemEvent("system.tab.leadership-changed", { isLeader });
+            }
+          },
+        })
+      : null;
+
+    if (debug) {
+      console.log("[CrossTabAdapter] Initialized", {
+        clientId: this.clientId,
+        channelName,
+        enableLeadership,
+        emitSystemEvents,
+      });
+    }
+  }
+
+  /**
+   * Attach the adapter to a PubSubBus instance.
+   *
+   * Sets up hooks to intercept published messages and inject received messages.
+   *
+   * @param bus - The PubSubBus instance to attach to
+   *
+   * @throws Error if already attached to a bus
+   *
+   * @example
+   * ```ts
+   * const bus = new PubSubBus();
+   * const adapter = new CrossTabAdapter({ channelName: 'my-app' });
+   *
+   * adapter.attach(bus);
+   * ```
+   */
+  attach(bus: PubSubBus): void {
+    if (this.bus) {
+      throw new Error("CrossTabAdapter is already attached to a bus");
+    }
+
+    this.bus = bus;
+    const hooks = bus.getHooks();
+
+    // Hook 1: Intercept locally published messages
+    this.unsubscribeOnPublish = hooks.onPublish((message: Message) => {
+      this.handleLocalPublish(message);
+    });
+
+    // Hook 2: Listen for messages from other tabs
+    this.unsubscribeTransport = this.transport.onMessage((envelope) => {
+      this.handleRemoteMessage(envelope);
+    });
+
+    if (this.config.debug) {
+      console.log("[CrossTabAdapter] Attached to bus", { clientId: this.clientId });
+    }
+
+    // Emit initialization event (after small delay to ensure transport is ready)
+    if (this.config.emitSystemEvents) {
+      setTimeout(() => this.notifyTabInitialized(), 100);
+    }
+  }
+
+  /**
+   * Detach the adapter from the bus.
+   *
+   * Cleans up all hooks, listeners, and resources.
+   *
+   * @example
+   * ```ts
+   * adapter.detach();
+   * ```
+   */
+  detach(): void {
+    if (!this.bus) {
+      return;
+    }
+
+    if (this.unsubscribeOnPublish) {
+      this.unsubscribeOnPublish();
+      this.unsubscribeOnPublish = undefined;
+    }
+
+    if (this.unsubscribeTransport) {
+      this.unsubscribeTransport();
+      this.unsubscribeTransport = undefined;
+    }
+
+    if (this.leadership) {
+      this.leadership.stop();
+    }
+
+    this.transport.close();
+
+    this.bus = null;
+
+    if (this.config.debug) {
+      console.log("[CrossTabAdapter] Detached from bus");
+    }
+  }
+
+  /**
+   * Check if this tab is currently the leader.
+   *
+   * @returns true if leadership is enabled and this tab is the leader
+   */
+  isLeader(): boolean {
+    return this.leadership?.isLeader() ?? false;
+  }
+
+  /**
+   * Get current adapter statistics.
+   *
+   * @returns Statistics about adapter operation
+   */
+  getStats(): CrossTabStats {
+    return {
+      messagesSent: this.stats.messagesSent,
+      messagesReceived: this.stats.messagesReceived,
+      messagesDeduplicated: this.stats.messagesDeduplicated,
+      messagesRejected: this.stats.messagesRejected,
+      messagesRateLimited: 0, // Not implemented yet (Task 7)
+      dedupeCacheSize: this.deduplicationCache.getStats().size,
+      isLeader: this.isLeader(),
+      clientId: this.clientId,
+    };
+  }
+
+  /**
+   * Handle a message published locally in this tab.
+   *
+   * Wraps it in a CrossTabEnvelope and broadcasts to other tabs.
+   *
+   * @private
+   */
+  private handleLocalPublish(message: Message): void {
+    try {
+      const envelope: CrossTabEnvelope = {
+        messageId: message.id,
+        clientId: this.clientId,
+        topic: message.topic,
+        payload: message.payload,
+        timestamp: message.ts,
+        version: 1,
+        origin: typeof window !== "undefined" ? window.location.origin : "unknown",
+      };
+
+      this.transport.send(envelope);
+      this.stats.messagesSent++;
+
+      if (this.config.debug) {
+        console.log("[CrossTabAdapter] Broadcast message", {
+          messageId: envelope.messageId,
+          topic: envelope.topic,
+        });
+      }
+    } catch (error) {
+      if (this.config.debug) {
+        console.error("[CrossTabAdapter] Error broadcasting message", error);
+      }
+    }
+  }
+
+  /**
+   * Handle a message received from another tab.
+   *
+   * Validates, deduplicates, and injects into local bus.
+   *
+   * @private
+   */
+  private handleRemoteMessage(envelope: CrossTabEnvelope): void {
+    try {
+      const sanitized = validateAndSanitizeEnvelope(envelope, this.config as any);
+
+      if (!sanitized) {
+        this.stats.messagesRejected++;
+
+        if (this.config.debug) {
+          console.warn("[CrossTabAdapter] Invalid envelope rejected", envelope);
+        }
+        return;
+      }
+
+      // Echo prevention: ignore messages from self
+      if (sanitized.clientId === this.clientId) {
+        return;
+      }
+
+      if (!this.deduplicationCache.checkAndMark(sanitized)) {
+        // Duplicate detected and rejected (counted in onDuplicate callback)
+        return;
+      }
+
+      const message: Message = {
+        id: sanitized.messageId,
+        topic: sanitized.topic,
+        payload: sanitized.payload,
+        ts: sanitized.timestamp,
+        meta: {
+          _crossTab: true,
+          _sourceClientId: sanitized.clientId,
+          _origin: sanitized.origin,
+        },
+      };
+
+      if (this.bus) {
+        const hooks = this.bus.getHooks();
+
+        hooks.dispatchExternal(message);
+        this.stats.messagesReceived++;
+
+        if (this.config.debug) {
+          console.log("[CrossTabAdapter] Received message", {
+            messageId: message.id,
+            topic: message.topic,
+            fromClient: sanitized.clientId,
+          });
+        }
+      }
+    } catch (error) {
+      this.stats.messagesRejected++;
+
+      if (this.config.debug) {
+        console.error("[CrossTabAdapter] Error handling remote message", error);
+      }
+    }
+  }
+
+  /**
+   * Notify other tabs that this tab has initialized.
+   *
+   * Emits a system.tab.initialized event via the transport.
+   *
+   * @private
+   */
+  private notifyTabInitialized(): void {
+    this.emitSystemEvent("system.tab.initialized", {
+      clientId: this.clientId,
+      timestamp: Date.now(),
+      isLeader: this.isLeader(),
+    });
+  }
+
+  /**
+   * Emit a system event to other tabs.
+   *
+   * Helper method for emitting system.* messages.
+   *
+   * @private
+   */
+  private emitSystemEvent(topic: string, payload: unknown): void {
+    try {
+      const envelope: CrossTabEnvelope = {
+        messageId: `system-${this.clientId}-${Date.now()}`,
+        clientId: this.clientId,
+        topic,
+        payload,
+        timestamp: Date.now(),
+        version: ENVELOPE_VERSION,
+        origin: typeof window !== "undefined" ? window.location.origin : "unknown",
+      };
+
+      this.transport.send(envelope);
+    } catch (error) {
+      if (this.config.debug) {
+        console.error("[CrossTabAdapter] Error emitting system event", topic, error);
+      }
+    }
+  }
+}
+
+/**
+ * Create a cross-tab adapter with the given configuration.
+ *
+ * Convenience factory function.
+ *
+ * @param config - Adapter configuration
+ *
+ * @returns A new CrossTabAdapter instance
+ *
+ * @example
+ * ```ts
+ * const adapter = createCrossTabAdapter({
+ *   channelName: 'my-app',
+ *   transport: new BroadcastChannelTransport({ channelName: 'my-app' }),
+ *   enableLeadership: true,
+ * });
+ * ```
+ */
+export function createCrossTabAdapter(config: CrossTabAdapterConfig): CrossTabAdapter {
+  return new CrossTabAdapter(config);
+}

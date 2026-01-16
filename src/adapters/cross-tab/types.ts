@@ -123,6 +123,30 @@ export interface CrossTabAdapterConfig {
   channelName?: string;
 
   /**
+   * Transport instance to use for cross-tab communication.
+   * Required.
+   */
+  transport: Transport;
+
+  /**
+   * Client ID for this tab.
+   * If not provided, will be generated automatically.
+   */
+  clientId?: string;
+
+  /**
+   * Enable leadership detection.
+   * Default: false
+   */
+  enableLeadership?: boolean;
+
+  /**
+   * Emit system events (tab initialized, leadership changed, etc.).
+   * Default: true
+   */
+  emitSystemEvents?: boolean;
+
+  /**
    * Transport mode selection.
    * - 'auto': Prefer BroadcastChannel, fallback to storage
    * - 'broadcast': Use BroadcastChannel only
