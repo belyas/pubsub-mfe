@@ -205,6 +205,7 @@ describe("Cross-Tab", () => {
 describe("Envelope Validation", () => {
   const mockConfig: ResolvedCrossTabConfig = {
     channelName: "test-channel",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     transport: {} as any,
     clientId: "test-client",
     enableLeadership: false,

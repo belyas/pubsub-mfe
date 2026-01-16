@@ -275,7 +275,7 @@ export class CrossTabAdapter {
    */
   private handleRemoteMessage(envelope: CrossTabEnvelope): void {
     try {
-      const sanitized = validateAndSanitizeEnvelope(envelope, this.config as any);
+      const sanitized = validateAndSanitizeEnvelope(envelope, this.config);
 
       if (!sanitized) {
         this.stats.messagesRejected++;
