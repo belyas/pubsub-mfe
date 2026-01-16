@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.3.0](https://github.com/belyas/pubsub-mfe/compare/v0.2.0...v0.3.0) (2026-01-16)
+
+
+### Features
+
+* add adapter class ([d1bb36b](https://github.com/belyas/pubsub-mfe/commit/d1bb36ba6dcf867f213596544ca40b47151db0bf))
+* add security classes and integrate into adapter ([6fd2181](https://github.com/belyas/pubsub-mfe/commit/6fd218166f8dff1efaa2f61c75884dd112f19fe7))
+
+
+### Documentation
+
+* add extra scripts example in the readme file ([68d7b7b](https://github.com/belyas/pubsub-mfe/commit/68d7b7b5fe41d4a69b59a978155479808836cd20))
+
 ## 0.2.0 (2026-01-10)
 
 
