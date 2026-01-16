@@ -646,4 +646,147 @@ describe("CrossTabAdapter", () => {
       expect(faultyTransport.sentMessages.length).toBeGreaterThan(0);
     });
   });
+
+  describe("security integration", () => {
+    it("should enforce rate limiting on incoming messages", async () => {
+      vi.useFakeTimers();
+
+      const adapter = new CrossTabAdapter({
+        channelName: "test",
+        transport: mockTransport,
+        clientId: "client-1",
+        rateLimit: {
+          maxPerSecond: 2,
+          maxBurst: 2,
+        },
+      });
+      const received: Message[] = [];
+
+      adapter.attach(bus);
+
+      bus.subscribe("test.topic", (msg: Message) => received.push(msg));
+
+      // Send 3 messages (only 2 should be processed due to rate limit)
+      for (let i = 0; i < 3; i++) {
+        const envelope: CrossTabEnvelope = {
+          messageId: `msg-${i}`,
+          clientId: "client-2",
+          topic: "test.topic",
+          payload: { value: i },
+          timestamp: Date.now(),
+          version: 1,
+          origin: TEST_ORIGIN,
+        };
+        mockTransport.simulateReceive(envelope);
+      }
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(received).toHaveLength(2); // Only 2 should pass rate limit
+      expect(adapter.getStats().messagesRateLimited).toBe(1);
+
+      vi.useRealTimers();
+    });
+
+    it("should block messages from non-whitelisted origins", async () => {
+      vi.useFakeTimers();
+
+      const adapter = new CrossTabAdapter({
+        channelName: "test",
+        transport: mockTransport,
+        clientId: "client-1",
+        expectedOrigin: "https://example.com",
+      });
+
+      adapter.attach(bus);
+
+      const received: Message[] = [];
+      bus.subscribe("test.topic", (msg: Message) => received.push(msg));
+
+      // Message from wrong origin
+      const envelope: CrossTabEnvelope = {
+        messageId: "msg-1",
+        clientId: "client-2",
+        topic: "test.topic",
+        payload: { value: 42 },
+        timestamp: Date.now(),
+        version: 1,
+        origin: "https://evil.com",
+      };
+
+      mockTransport.simulateReceive(envelope);
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(received).toHaveLength(0);
+      expect(adapter.getStats().originBlocked).toBe(1);
+
+      vi.useRealTimers();
+    });
+
+    it("should reject oversized messages on send", () => {
+      const adapter = new CrossTabAdapter({
+        channelName: "test",
+        transport: mockTransport,
+        maxMessageSize: 100, // Very small limit
+      });
+
+      adapter.attach(bus);
+      bus.publish("test.topic", { data: "a".repeat(1000) });
+
+      expect(mockTransport.sentMessages).toHaveLength(0);
+      expect(adapter.getStats().messagesOversized).toBe(1);
+    });
+
+    it("should reject oversized messages on receive", async () => {
+      vi.useFakeTimers();
+
+      const adapter = new CrossTabAdapter({
+        channelName: "test",
+        transport: mockTransport,
+        clientId: "client-1",
+        maxMessageSize: 100, // Very small limit
+      });
+      const received: Message[] = [];
+
+      adapter.attach(bus);
+      bus.subscribe("test.topic", (msg: Message) => received.push(msg));
+      // Large envelope
+      const envelope: CrossTabEnvelope = {
+        messageId: "msg-1",
+        clientId: "client-2",
+        topic: "test.topic",
+        payload: { data: "a".repeat(1000) },
+        timestamp: Date.now(),
+        version: 1,
+        origin: TEST_ORIGIN,
+      };
+
+      mockTransport.simulateReceive(envelope);
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(received).toHaveLength(0);
+      expect(adapter.getStats().messagesOversized).toBeGreaterThan(0);
+
+      vi.useRealTimers();
+    });
+
+    it("should track all security stats", () => {
+      const adapter = new CrossTabAdapter({
+        channelName: "test",
+        transport: mockTransport,
+        rateLimit: {
+          maxPerSecond: 100,
+          maxBurst: 200,
+        },
+      });
+
+      const stats = adapter.getStats();
+
+      expect(stats.messagesRateLimited).toBe(0);
+      expect(stats.messagesOversized).toBe(0);
+      expect(stats.originBlocked).toBe(0);
+    });
+  });
 });

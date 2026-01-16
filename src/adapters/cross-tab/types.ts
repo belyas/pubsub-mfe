@@ -308,6 +308,16 @@ export interface CrossTabStats {
   messagesRateLimited: number;
 
   /**
+   * Messages rejected because they exceeded the size limit.
+   */
+  messagesOversized: number;
+
+  /**
+   * Messages rejected due to origin not being in whitelist.
+   */
+  originBlocked: number;
+
+  /**
    * Current size of deduplication cache.
    */
   dedupeCacheSize: number;

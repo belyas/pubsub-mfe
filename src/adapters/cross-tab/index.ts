@@ -23,3 +23,6 @@ export {
   createEnvelope,
   validateEnvelope,
 } from "./envelope";
+
+export { RateLimiter, OriginValidator, MessageSizeValidator, SecurityAuditor } from "./security";
+export type { RateLimitConfig, SecurityEvent } from "./security";

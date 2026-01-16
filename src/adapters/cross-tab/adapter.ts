@@ -4,6 +4,7 @@ import { getOrCreateClientId } from "./client-id";
 import { DeduplicationCache } from "./deduplication";
 import { LeadershipDetector } from "./leadership";
 import { ENVELOPE_VERSION, validateAndSanitizeEnvelope } from "./envelope";
+import { RateLimiter, OriginValidator, MessageSizeValidator } from "./security";
 
 /**
  * Cross-tab adapter that integrates with PubSubBus via hooks.
@@ -31,6 +32,9 @@ export class CrossTabAdapter {
   private readonly clientId: string;
   private readonly deduplicationCache: DeduplicationCache;
   private readonly leadership: LeadershipDetector | null;
+  private readonly rateLimiter: RateLimiter | null;
+  private readonly originValidator: OriginValidator;
+  private readonly messageSizeValidator: MessageSizeValidator;
   private readonly config: Required<CrossTabAdapterConfig>;
   private bus: PubSubBus | null = null;
   private unsubscribeOnPublish?: () => void;
@@ -40,6 +44,9 @@ export class CrossTabAdapter {
     messagesReceived: 0,
     messagesDeduplicated: 0,
     messagesRejected: 0,
+    messagesRateLimited: 0,
+    messagesOversized: 0,
+    originBlocked: 0,
   };
 
   constructor(config: CrossTabAdapterConfig) {
@@ -110,6 +117,21 @@ export class CrossTabAdapter {
           },
         })
       : null;
+
+    this.rateLimiter = config.rateLimit
+      ? new RateLimiter({
+          maxPerSecond: config.rateLimit.maxPerSecond,
+          maxBurst: config.rateLimit.maxBurst,
+        })
+      : null;
+
+    this.originValidator = new OriginValidator({
+      allowedOrigins: [expectedOrigin],
+    });
+
+    this.messageSizeValidator = new MessageSizeValidator({
+      maxBytes: maxMessageSize,
+    });
 
     if (debug) {
       console.log("[CrossTabAdapter] Initialized", {
@@ -224,7 +246,9 @@ export class CrossTabAdapter {
       messagesReceived: this.stats.messagesReceived,
       messagesDeduplicated: this.stats.messagesDeduplicated,
       messagesRejected: this.stats.messagesRejected,
-      messagesRateLimited: 0, // Not implemented yet (Task 7)
+      messagesRateLimited: this.stats.messagesRateLimited,
+      messagesOversized: this.stats.messagesOversized,
+      originBlocked: this.stats.originBlocked,
       dedupeCacheSize: this.deduplicationCache.getStats().size,
       isLeader: this.isLeader(),
       clientId: this.clientId,
@@ -249,6 +273,21 @@ export class CrossTabAdapter {
         version: 1,
         origin: typeof window !== "undefined" ? window.location.origin : "unknown",
       };
+
+      if (!this.messageSizeValidator.isValid(envelope)) {
+        this.stats.messagesOversized++;
+
+        if (this.config.debug) {
+          const size = this.messageSizeValidator.getSize(envelope);
+          const maxSize = this.messageSizeValidator.getMaxSize();
+          console.warn("[CrossTabAdapter] Message exceeds size limit", {
+            messageId: envelope.messageId,
+            size,
+            maxSize,
+          });
+        }
+        return;
+      }
 
       this.transport.send(envelope);
       this.stats.messagesSent++;
@@ -275,6 +314,8 @@ export class CrossTabAdapter {
    */
   private handleRemoteMessage(envelope: CrossTabEnvelope): void {
     try {
+      // First, validate envelope structure (before security checks)
+      // This ensures envelope has required fields for security validation
       const sanitized = validateAndSanitizeEnvelope(envelope, this.config);
 
       if (!sanitized) {
@@ -282,6 +323,45 @@ export class CrossTabAdapter {
 
         if (this.config.debug) {
           console.warn("[CrossTabAdapter] Invalid envelope rejected", envelope);
+        }
+        return;
+      }
+
+      if (this.rateLimiter && !this.rateLimiter.allowMessage()) {
+        this.stats.messagesRateLimited++;
+
+        if (this.config.debug) {
+          console.warn("[CrossTabAdapter] Message rate limited", {
+            messageId: sanitized.messageId,
+            limiterStats: this.rateLimiter.getStats(),
+          });
+        }
+        return;
+      }
+
+      if (!this.originValidator.isAllowed(sanitized.origin)) {
+        this.stats.originBlocked++;
+
+        if (this.config.debug) {
+          console.warn("[CrossTabAdapter] Message from blocked origin", {
+            messageId: sanitized.messageId,
+            origin: sanitized.origin,
+          });
+        }
+        return;
+      }
+
+      if (!this.messageSizeValidator.isValid(sanitized)) {
+        this.stats.messagesOversized++;
+
+        if (this.config.debug) {
+          const size = this.messageSizeValidator.getSize(sanitized);
+
+          console.warn("[CrossTabAdapter] Received message exceeds size limit", {
+            messageId: sanitized.messageId,
+            size,
+            maxSize: this.messageSizeValidator.getMaxSize(),
+          });
         }
         return;
       }

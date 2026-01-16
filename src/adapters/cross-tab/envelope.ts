@@ -98,7 +98,7 @@ export function envelopeToMessage<T = unknown>(envelope: CrossTabEnvelope<T>): M
  */
 export function validateEnvelope(
   envelope: unknown,
-  config: ResolvedCrossTabConfig
+  _config: ResolvedCrossTabConfig
 ): EnvelopeValidationResult {
   if (!envelope || typeof envelope !== "object") {
     return {
@@ -137,11 +137,13 @@ export function validateEnvelope(
     };
   }
 
-  if (env.origin !== config.expectedOrigin) {
+  // Note: Origin validation is done separately by OriginValidator in the adapter
+  // Here we just check that origin field exists and is a string
+  if (typeof env.origin !== "string" || env.origin.length === 0) {
     return {
       valid: false,
-      error: `Origin mismatch: ${env.origin} (expected: ${config.expectedOrigin})`,
-      code: "INVALID_ORIGIN" as EnvelopeValidationErrorCode,
+      error: "origin must be a non-empty string",
+      code: "INVALID_TYPE" as EnvelopeValidationErrorCode,
     };
   }
 
@@ -264,11 +266,9 @@ export function validateAndSanitizeEnvelope(
   }
 
   const envelope = data as CrossTabEnvelope;
-  const sizeResult = validateEnvelopeSize(envelope, config.maxMessageSize);
 
-  if (!sizeResult.valid) {
-    return null;
-  }
+  // Note: Size validation is done separately by MessageSizeValidator in the adapter
+  // This allows for more detailed security tracking and stats
 
   // Return validated envelope
   // Note: We don't clone the envelope here for performance.

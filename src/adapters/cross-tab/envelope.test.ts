@@ -288,12 +288,13 @@ describe("Envelope Validation", () => {
       expect(result.code).toBe("INVALID_VERSION");
     });
 
-    it("should reject envelope with wrong origin", () => {
-      const invalid = { ...validEnvelope, origin: "http://evil.com" };
-      const result = validateEnvelope(invalid, mockConfig);
+    it("should accept envelope with different origin (origin validation is done in adapter)", () => {
+      const envelope = { ...validEnvelope, origin: "http://different.com" };
+      const result = validateEnvelope(envelope, mockConfig);
 
-      expect(result.valid).toBe(false);
-      expect(result.code).toBe("INVALID_ORIGIN");
+      // validateEnvelope only checks that origin is a string, not that it matches
+      // Origin matching is done by OriginValidator in the adapter
+      expect(result.valid).toBe(true);
     });
 
     it("should reject envelope with empty messageId", () => {
@@ -390,19 +391,23 @@ describe("Envelope Validation", () => {
       expect(result).toBeNull();
     });
 
-    it("should return null for oversized envelope", () => {
+    it("should accept oversized envelope (size validation is done in adapter)", () => {
       const largePayload = { data: "x".repeat(1024 * 300) };
       const largeEnvelope = { ...validEnvelope, payload: largePayload };
       const result = validateAndSanitizeEnvelope(largeEnvelope, mockConfig);
 
-      expect(result).toBeNull();
+      // validateAndSanitizeEnvelope no longer checks size
+      // Size validation is done by MessageSizeValidator in the adapter
+      expect(result).not.toBeNull();
     });
 
-    it("should return null for wrong origin", () => {
-      const wrongOrigin = { ...validEnvelope, origin: "http://evil.com" };
+    it("should accept different origin (origin validation is done in adapter)", () => {
+      const wrongOrigin = { ...validEnvelope, origin: "http://different.com" };
       const result = validateAndSanitizeEnvelope(wrongOrigin, mockConfig);
 
-      expect(result).toBeNull();
+      // validateAndSanitizeEnvelope no longer validates origin matching
+      // Origin validation is done by OriginValidator in the adapter
+      expect(result).not.toBeNull();
     });
   });
 
