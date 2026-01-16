@@ -8,3 +8,4 @@ dist
 coverage
 npm-debug.log*
 pnpm-debug.log*
+tmp
