@@ -218,6 +218,7 @@ describe("Envelope Validation", () => {
     dedupeCacheSize: 1000,
     enableBroker: false,
     batchIntervalMs: 10,
+    maxBatchSize: 50,
     compressionThreshold: 1024,
     onError: () => {},
     debug: false,

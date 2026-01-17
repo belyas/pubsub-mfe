@@ -23,6 +23,7 @@ export default [
         process: 'readonly',
         window: 'readonly',
         document: 'readonly',
+        performance: 'readonly',
       },
     },
     plugins: {

@@ -217,6 +217,13 @@ export interface CrossTabAdapterConfig {
   batchIntervalMs?: number;
 
   /**
+   * Maximum number of messages in a single batch.
+   * When reached, the batch is flushed immediately.
+   * Default: 50
+   */
+  maxBatchSize?: number;
+
+  /**
    * Minimum payload size to trigger compression (bytes).
    * Payloads smaller than this are sent uncompressed.
    * Default: 1024 (1KB)
@@ -316,6 +323,21 @@ export interface CrossTabStats {
    * Messages rejected due to origin not being in whitelist.
    */
   originBlocked: number;
+
+  /**
+   * Total number of batches sent.
+   */
+  batchesSent: number;
+
+  /**
+   * Average batch size (messages per batch).
+   */
+  averageBatchSize: number;
+
+  /**
+   * Maximum batch size seen.
+   */
+  maxBatchSizeSeen: number;
 
   /**
    * Current size of deduplication cache.

@@ -26,3 +26,6 @@ export {
 
 export { RateLimiter, OriginValidator, MessageSizeValidator, SecurityAuditor } from "./security";
 export type { RateLimitConfig, SecurityEvent } from "./security";
+
+export { MessageBatcher, createMessageBatcher } from "./batching";
+export type { BatchingConfig, BatchingConfigWithFlush } from "./batching";

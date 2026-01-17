@@ -5,6 +5,7 @@ import { DeduplicationCache } from "./deduplication";
 import { LeadershipDetector } from "./leadership";
 import { ENVELOPE_VERSION, validateAndSanitizeEnvelope } from "./envelope";
 import { RateLimiter, OriginValidator, MessageSizeValidator } from "./security";
+import { MessageBatcher } from "./batching";
 
 /**
  * Cross-tab adapter that integrates with PubSubBus via hooks.
@@ -35,6 +36,7 @@ export class CrossTabAdapter {
   private readonly rateLimiter: RateLimiter | null;
   private readonly originValidator: OriginValidator;
   private readonly messageSizeValidator: MessageSizeValidator;
+  private readonly batcher: MessageBatcher | null;
   private readonly config: Required<CrossTabAdapterConfig>;
   private bus: PubSubBus | null = null;
   private unsubscribeOnPublish?: () => void;
@@ -133,12 +135,40 @@ export class CrossTabAdapter {
       maxBytes: maxMessageSize,
     });
 
+    const batchIntervalMs = config.batchIntervalMs ?? 10;
+    const maxBatchSize = config.maxBatchSize ?? 50;
+
+    this.batcher =
+      batchIntervalMs > 0
+        ? new MessageBatcher({
+            intervalMs: batchIntervalMs,
+            maxBatchSize,
+            onFlush: (envelopes) => {
+              // Send the batch - wrap in try/catch to handle closed transport
+              try {
+                for (const envelope of envelopes) {
+                  this.transport.send(envelope);
+                }
+                this.stats.messagesSent += envelopes.length;
+              } catch (error) {
+                if (debug) {
+                  console.error("[CrossTabAdapter] Error sending batch", error);
+                }
+                if (this.config.onError) {
+                  this.config.onError(error as Error);
+                }
+              }
+            },
+          })
+        : null;
+
     if (debug) {
       console.log("[CrossTabAdapter] Initialized", {
         clientId: this.clientId,
         channelName,
         enableLeadership,
         emitSystemEvents,
+        batching: this.batcher ? { intervalMs: batchIntervalMs, maxBatchSize } : "disabled",
       });
     }
   }
@@ -217,6 +247,10 @@ export class CrossTabAdapter {
       this.leadership.stop();
     }
 
+    if (this.batcher) {
+      this.batcher.dispose();
+    }
+
     this.transport.close();
 
     this.bus = null;
@@ -241,6 +275,8 @@ export class CrossTabAdapter {
    * @returns Statistics about adapter operation
    */
   getStats(): CrossTabStats {
+    const batcherStats = this.batcher?.getStats();
+
     return {
       messagesSent: this.stats.messagesSent,
       messagesReceived: this.stats.messagesReceived,
@@ -249,6 +285,9 @@ export class CrossTabAdapter {
       messagesRateLimited: this.stats.messagesRateLimited,
       messagesOversized: this.stats.messagesOversized,
       originBlocked: this.stats.originBlocked,
+      batchesSent: batcherStats?.totalBatches ?? 0,
+      averageBatchSize: batcherStats?.averageBatchSize ?? 0,
+      maxBatchSizeSeen: batcherStats?.maxBatchSize ?? 0,
       dedupeCacheSize: this.deduplicationCache.getStats().size,
       isLeader: this.isLeader(),
       clientId: this.clientId,
@@ -289,13 +328,19 @@ export class CrossTabAdapter {
         return;
       }
 
-      this.transport.send(envelope);
-      this.stats.messagesSent++;
+      // Use batcher if enabled, otherwise send directly
+      if (this.batcher) {
+        this.batcher.add(envelope);
+      } else {
+        this.transport.send(envelope);
+        this.stats.messagesSent++;
+      }
 
       if (this.config.debug) {
         console.log("[CrossTabAdapter] Broadcast message", {
           messageId: envelope.messageId,
           topic: envelope.topic,
+          batched: !!this.batcher,
         });
       }
     } catch (error) {

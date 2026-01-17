@@ -237,6 +237,7 @@ describe("CrossTabAdapter", () => {
       const adapter = new CrossTabAdapter({
         channelName: "test",
         transport: mockTransport,
+        batchIntervalMs: 0, // Disable batching for immediate send
       });
 
       adapter.attach(bus);
@@ -254,6 +255,7 @@ describe("CrossTabAdapter", () => {
         channelName: "test",
         transport: mockTransport,
         clientId: "my-client",
+        batchIntervalMs: 0, // Disable batching for immediate send
       });
 
       adapter.attach(bus);
@@ -268,6 +270,7 @@ describe("CrossTabAdapter", () => {
       const adapter = new CrossTabAdapter({
         channelName: "test",
         transport: mockTransport,
+        batchIntervalMs: 0, // Disable batching for immediate send
       });
 
       adapter.attach(bus);
@@ -421,6 +424,7 @@ describe("CrossTabAdapter", () => {
       const adapter = new CrossTabAdapter({
         channelName: "test",
         transport: mockTransport,
+        batchIntervalMs: 0, // Disable batching for immediate send
       });
 
       adapter.attach(bus);
@@ -626,6 +630,7 @@ describe("CrossTabAdapter", () => {
         transport: faultyTransport,
         emitSystemEvents: false,
         debug: false,
+        batchIntervalMs: 0, // Disable batching for immediate send
       });
 
       adapter.attach(bus);
