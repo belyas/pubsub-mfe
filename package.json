@@ -29,6 +29,10 @@
     "./adapters/cross-tab": {
       "types": "./dist/adapters/cross-tab.d.ts",
       "import": "./dist/adapters/cross-tab.js"
+    },
+    "./adapters/iframe": {
+      "types": "./dist/adapters/iframe.d.ts",
+      "import": "./dist/adapters/iframe.js"
     }
   },
   "files": [

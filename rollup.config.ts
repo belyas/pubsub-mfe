@@ -68,6 +68,25 @@ const adapterBundle: RollupOptions = {
   },
 };
 
+const iframeAdapterBundle: RollupOptions = {
+  input: "src/adapters/iframe/index.ts",
+  output: {
+    file: "dist/adapters/iframe.js",
+    format: "esm",
+    sourcemap: true,
+    generatedCode: {
+      constBindings: true,
+    },
+    exports: "named",
+  },
+  plugins: [resolve(), typescriptPlugin],
+  treeshake: {
+    moduleSideEffects: false,
+    propertyReadSideEffects: false,
+    unknownGlobalSideEffects: false,
+  },
+};
+
 const dtsBundle: RollupOptions = {
   input: "src/index.ts",
   output: {
@@ -95,9 +114,27 @@ const adapterDtsBundle: RollupOptions = {
   plugins: [dts()],
 };
 
+const iframeAdapterDtsBundle: RollupOptions = {
+  input: "src/adapters/iframe/index.ts",
+  output: {
+    file: "dist/adapters/iframe.d.ts",
+    format: "esm",
+  },
+  plugins: [dts()],
+};
+
 // In watch mode, skip dts bundles for faster iteration
 export default defineConfig(
   isWatchMode
-    ? [mainBundle, workerBundle, adapterBundle]
-    : [mainBundle, workerBundle, adapterBundle, dtsBundle, workerDtsBundle, adapterDtsBundle]
+    ? [mainBundle, workerBundle, adapterBundle, iframeAdapterBundle]
+    : [
+        mainBundle,
+        workerBundle,
+        adapterBundle,
+        iframeAdapterBundle,
+        dtsBundle,
+        workerDtsBundle,
+        adapterDtsBundle,
+        iframeAdapterDtsBundle,
+      ]
 );
