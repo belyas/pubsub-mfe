@@ -120,7 +120,6 @@ describe("IframeHost", () => {
         trustedOrigins: [trustedOrigin],
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await expect(host.registerIframe(iframe as any, trustedOrigin)).rejects.toThrow(
         "IframeHost must be attached before registering iframes"
       );
@@ -132,7 +131,6 @@ describe("IframeHost", () => {
       });
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await expect(host.registerIframe(iframe as any, "https://evil.com")).rejects.toThrow(
         "Untrusted origin: https://evil.com"
       );
@@ -145,7 +143,6 @@ describe("IframeHost", () => {
       });
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
 
       expect(iframe.contentWindow.postMessage).toHaveBeenCalledWith(
@@ -170,7 +167,6 @@ describe("IframeHost", () => {
       });
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await expect(host.registerIframe(iframe as any, trustedOrigin)).rejects.toThrow(
         "Handshake timeout"
       );
@@ -186,7 +182,6 @@ describe("IframeHost", () => {
       });
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
 
       await expect(registerPromise).rejects.toThrow("Handshake timeout");
@@ -203,7 +198,6 @@ describe("IframeHost", () => {
       });
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
 
       // Simulate ACK response
@@ -235,7 +229,6 @@ describe("IframeHost", () => {
       });
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
 
       // Simulate ACK from wrong origin
@@ -265,7 +258,7 @@ describe("IframeHost", () => {
       host.attach();
 
       // First registration
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const registerPromise1 = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -284,7 +277,6 @@ describe("IframeHost", () => {
       // Second registration (should warn and return)
       const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await host.registerIframe(iframe as any, trustedOrigin);
       expect(consoleSpy).toHaveBeenCalledWith(
         "[IframeHost]",
@@ -311,7 +303,7 @@ describe("IframeHost", () => {
       };
 
       const originalMessageChannel = globalThis.MessageChannel;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (globalThis as any).MessageChannel = class MockMessageChannel {
         port1 = mockPort;
         port2 = {};
@@ -324,7 +316,7 @@ describe("IframeHost", () => {
       host.attach();
 
       // Register and complete handshake
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -340,7 +332,6 @@ describe("IframeHost", () => {
       );
       await registerPromise;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).MessageChannel = originalMessageChannel;
     });
 
@@ -418,7 +409,7 @@ describe("IframeHost", () => {
       };
 
       const originalMessageChannel = globalThis.MessageChannel;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (globalThis as any).MessageChannel = class MockMessageChannel {
         port1 = mockPort;
         port2 = {};
@@ -430,7 +421,6 @@ describe("IframeHost", () => {
 
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -446,7 +436,6 @@ describe("IframeHost", () => {
       );
       await registerPromise;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).MessageChannel = originalMessageChannel;
     });
 
@@ -502,7 +491,6 @@ describe("IframeHost", () => {
 
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
 
       const ack: IframeAckEnvelope = {
@@ -531,7 +519,6 @@ describe("IframeHost", () => {
       });
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
 
       const ack: IframeAckEnvelope = {
@@ -554,10 +541,9 @@ describe("IframeHost", () => {
 
   describe("UnregisterIframe", () => {
     it("should unregister iframe and send disconnect", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let mockPort: any;
       const originalMessageChannel = globalThis.MessageChannel;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (globalThis as any).MessageChannel = class MockMessageChannel {
         port1 = {
           postMessage: vi.fn(),
@@ -577,7 +563,6 @@ describe("IframeHost", () => {
 
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -593,14 +578,12 @@ describe("IframeHost", () => {
       );
       await registerPromise;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       host.unregisterIframe(iframe as any);
 
       expect(mockPort.close).toHaveBeenCalled();
       const stats = host.getStats();
       expect(stats.connectedIframes).toBe(0);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).MessageChannel = originalMessageChannel;
     });
 
@@ -611,7 +594,7 @@ describe("IframeHost", () => {
       host.attach();
 
       const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       host.unregisterIframe(iframe as any);
 
       expect(consoleSpy).toHaveBeenCalledWith("[IframeHost]", "Iframe not registered");
@@ -622,7 +605,7 @@ describe("IframeHost", () => {
   describe("GetStats", () => {
     it("should return accurate statistics", async () => {
       const originalMessageChannel = globalThis.MessageChannel;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (globalThis as any).MessageChannel = class MockMessageChannel {
         port1 = {
           postMessage: vi.fn(),
@@ -638,7 +621,6 @@ describe("IframeHost", () => {
       });
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -664,7 +646,6 @@ describe("IframeHost", () => {
       expect(stats.connectedIframes).toBe(1);
       expect(stats.messagesSent).toBe(1);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).MessageChannel = originalMessageChannel;
     });
   });
@@ -686,7 +667,7 @@ describe("IframeHost", () => {
       };
 
       const originalMessageChannel = globalThis.MessageChannel;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (globalThis as any).MessageChannel = class MockMessageChannel {
         port1 = mockPort;
         port2 = {};
@@ -698,7 +679,6 @@ describe("IframeHost", () => {
 
       host.attach();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -714,7 +694,6 @@ describe("IframeHost", () => {
       );
       await registerPromise;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).MessageChannel = originalMessageChannel;
     });
 
@@ -788,13 +767,12 @@ describe("IframeHost", () => {
       };
 
       const originalMessageChannel = globalThis.MessageChannel;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (globalThis as any).MessageChannel = class MockMessageChannel {
         port1 = validationMockPort;
         port2 = {};
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const registerPromise = validationHost.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",

@@ -252,6 +252,136 @@ bus.subscribe('orders.#', (msg) => {
 - TTL filtering happens at replay time (expired messages are skipped)
 - Per-topic limits override the global `maxMessages` for matching topics
 
+## Iframe Adapter
+
+The Iframe Adapter enables secure, bidirectional communication between a host application and sandboxed iframe microfrontends using MessageChannel with origin validation.
+
+### Features
+
+- ✅ **Secure Handshake Protocol** — Three-way SYN → ACK → ACK_CONFIRM handshake
+- ✅ **Origin Validation** — Every message validates `event.origin` (never uses `*`)
+- ✅ **Full Wildcard Support** — Same MQTT-style patterns as main bus
+- ✅ **Auto-Reconnect** — Automatically reconnects on iframe reload
+- ✅ **Passive Disconnect Detection** — Detects iframe removal and port errors
+- ✅ **Zero Memory Leaks** — Comprehensive cleanup of ports and subscriptions
+
+### Quick Start
+
+**Host Application:**
+
+```typescript
+import { createPubSubBus } from '@belyas/pubsub-mfe';
+import { createIframeHost } from '@belyas/pubsub-mfe/adapters/iframe';
+
+// Create main bus
+const bus = createPubSubBus();
+
+// Create iframe host
+const iframeHost = createIframeHost(bus, {
+  trustedOrigins: ['https://shop.example.com', 'https://cart.example.com'],
+  onHandshakeComplete: (iframe, clientId) => {
+    console.log(`Iframe connected: ${clientId}`);
+  },
+});
+
+// Register iframes
+const shopIframe = document.getElementById('shop-mfe') as HTMLIFrameElement;
+iframeHost.registerIframe(shopIframe, 'https://shop.example.com');
+
+// Messages automatically broadcast to all iframes
+bus.publish('cart.update', { items: 3, total: 99.99 });
+```
+
+**Iframe Application:**
+
+```typescript
+import { createIframeClient } from '@belyas/pubsub-mfe/adapters/iframe';
+
+// Connect to host
+const client = await createIframeClient({
+  expectedHostOrigin: 'https://host.example.com',
+});
+
+// Subscribe to messages from host and other iframes
+client.subscribe('cart.#', (msg) => {
+  console.log('Cart event:', msg.payload);
+});
+
+// Publish messages (sent to host, then broadcast to all iframes)
+client.publish('cart.add', { item: 'Widget', qty: 1 });
+```
+
+### Security
+
+The iframe adapter enforces strict security practices:
+
+- **Never uses wildcard origins (`*`)** — All messages validate exact origins
+- **MessageChannel isolation** — Each iframe gets dedicated port
+- **Structured clone** — Prevents code injection
+- **CSP-friendly** — Works with Content Security Policy
+
+```typescript
+// ✅ GOOD: Specific trusted origins
+createIframeHost(bus, {
+  trustedOrigins: ['https://shop.example.com'],
+});
+
+// ❌ BAD: Never use wildcards
+createIframeHost(bus, {
+  trustedOrigins: ['*'], // REJECTED
+});
+```
+
+### Advanced Usage
+
+**Auto-Reconnect:**
+
+```typescript
+const iframeHost = createIframeHost(bus, {
+  trustedOrigins: ['https://shop.example.com'],
+  autoReconnect: true, // Reconnects on iframe reload
+  handshakeTimeout: 5000,
+  maxRetries: 2,
+});
+```
+
+**Statistics Tracking:**
+
+```typescript
+const stats = iframeHost.getStats();
+console.log(`Connected: ${stats.connectedIframes}/${stats.totalIframes}`);
+console.log(`Messages sent: ${stats.messagesSent}`);
+console.log(`Messages received: ${stats.messagesReceived}`);
+```
+
+**Request-Response Pattern:**
+
+```typescript
+// Requester (iframe)
+async function getUserProfile(): Promise<UserProfile> {
+  return new Promise((resolve) => {
+    const requestId = generateId();
+    const unsub = client.subscribe(`user.profile.response.${requestId}`, (msg) => {
+      unsub();
+      resolve(msg.payload);
+    });
+    client.publish('user.profile.request', { requestId });
+  });
+}
+
+// Responder (host)
+bus.subscribe('user.profile.request', (msg) => {
+  const profile = getCurrentUser();
+  bus.publish(`user.profile.response.${msg.payload.requestId}`, profile);
+});
+```
+
+### Documentation
+
+- **[Usage Guide](./tmp/docs/IFRAME_ADAPTER_USAGE.md)** — Comprehensive examples and best practices
+- **[Implementation Plan](./tmp/docs/IFRAME_ADAPTER_PLAN.md)** — Architecture and design decisions
+- **API Reference** — See usage guide for complete API documentation
+
 ## Security
 
 This library includes multiple layers of security protection:

@@ -71,7 +71,6 @@ describe("CrossTabAdapter", () => {
       expect(() => {
         new CrossTabAdapter({
           channelName: "test",
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
       }).toThrow("transport is required");
     });
@@ -386,7 +385,6 @@ describe("CrossTabAdapter", () => {
       adapter.attach(bus);
       bus.subscribe("#", (msg: Message) => received.push(msg));
       // Invalid envelope (missing required fields)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invalidEnvelope: any = {
         messageId: "msg-123",
         // Missing clientId, topic, etc.

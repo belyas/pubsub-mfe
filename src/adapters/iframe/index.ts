@@ -1,4 +1,5 @@
-export { IframeHost } from "./host";
+export { IframeHost, createIframeHost } from "./host";
+export { IframeClient, createIframeClient } from "./client";
 
 export type {
   IframeHostConfig,

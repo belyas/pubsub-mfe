@@ -542,3 +542,28 @@ export class IframeHost {
     (console as Console)[level]?.(prefix, message);
   }
 }
+
+/**
+ * Factory function to create and configure an IframeHost adapter.
+ *
+ * @param bus - The PubSubBus instance to attach to
+ * @param config - Configuration for the IframeHost
+ *
+ * @returns Configured IframeHost instance
+ *
+ * @example
+ * ```typescript
+ * const host = createIframeHost(bus, {
+ *   trustedOrigins: ['https://shop.example.com', 'https://chat.example.com']
+ * });
+ *
+ * host.registerIframe(shopIframe, 'https://shop.example.com');
+ * host.registerIframe(chatIframe, 'https://chat.example.com');
+ * ```
+ */
+export function createIframeHost(bus: PubSubBus, config: IframeHostConfig): IframeHost {
+  const host = new IframeHost(bus, config);
+
+  host.attach();
+  return host;
+}

@@ -55,6 +55,12 @@ export default [
     },
   },
   {
+    files: ['**/*.test.ts', '**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+  {
     ignores: ['dist', 'node_modules', '*.config.ts', '*.config.js'],
   },
 ];
