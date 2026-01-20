@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shop Microfrontend</title>
+    <link rel="stylesheet" href="/src/styles/iframe.css" />
+  </head>
+  <body class="mfe-body">
+    <div class="mfe-container">
+      <div class="mfe-header">
+        <h2 class="mfe-title">
+          <svg class="mfe-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="3" y1="6" x2="21" y2="6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16 10a4 4 0 0 1-8 0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Shop MFE
+        </h2>
+        <div class="connection-badge" id="connection-status">
+          <span class="badge-dot"></span>
+          <span class="badge-text">Connecting...</span>
+        </div>
+      </div>
+
+      <div class="mfe-content">
+        <div class="section">
+          <h3 class="section-title">Products</h3>
+          <div class="product-grid">
+            <div class="product-card">
+              <div class="product-image">🎮</div>
+              <div class="product-info">
+                <div class="product-name">Gaming Console</div>
+                <div class="product-price">$499.99</div>
+              </div>
+              <button class="btn-add-to-cart" data-product='{"id":"1","name":"Gaming Console","price":499.99}'>
+                Add to Cart
+              </button>
+            </div>
+
+            <div class="product-card">
+              <div class="product-image">💻</div>
+              <div class="product-info">
+                <div class="product-name">Laptop Pro</div>
+                <div class="product-price">$1,299.99</div>
+              </div>
+              <button class="btn-add-to-cart" data-product='{"id":"2","name":"Laptop Pro","price":1299.99}'>
+                Add to Cart
+              </button>
+            </div>
+
+            <div class="product-card">
+              <div class="product-image">📱</div>
+              <div class="product-info">
+                <div class="product-name">Smartphone X</div>
+                <div class="product-price">$899.99</div>
+              </div>
+              <button class="btn-add-to-cart" data-product='{"id":"3","name":"Smartphone X","price":899.99}'>
+                Add to Cart
+              </button>
+            </div>
+
+            <div class="product-card">
+              <div class="product-image">🎧</div>
+              <div class="product-info">
+                <div class="product-name">Wireless Headphones</div>
+                <div class="product-price">$199.99</div>
+              </div>
+              <button class="btn-add-to-cart" data-product='{"id":"4","name":"Wireless Headphones","price":199.99}'>
+                Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">
+            Shopping Cart
+            <span class="cart-badge" id="cart-count">0</span>
+          </h3>
+          <div id="cart-items" class="cart-items">
+            <div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="9" cy="21" r="1" stroke-width="2"/>
+                <circle cx="20" cy="21" r="1" stroke-width="2"/>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p>Your cart is empty</p>
+            </div>
+          </div>
+          <div class="cart-total" id="cart-total-section" style="display: none;">
+            <div class="total-label">Total:</div>
+            <div class="total-value" id="cart-total">$0.00</div>
+          </div>
+          <button id="checkout-btn" class="btn-checkout" style="display: none;">
+            Proceed to Checkout
+          </button>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Statistics</h3>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-value" id="messages-published">0</div>
+              <div class="stat-label">Published</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="messages-received">0</div>
+              <div class="stat-label">Received</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/shop.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Microfrontend</title>
+    <link rel="stylesheet" href="/src/styles/iframe.css" />
+  </head>
+  <body class="mfe-body">
+    <div class="mfe-container">
+      <div class="mfe-header">
+        <h2 class="mfe-title">
+          <svg class="mfe-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Chat MFE
+        </h2>
+        <div class="connection-badge" id="connection-status">
+          <span class="badge-dot"></span>
+          <span class="badge-text">Connecting...</span>
+        </div>
+      </div>
+
+      <div class="mfe-content">
+        <div class="section">
+          <h3 class="section-title">Messages</h3>
+          <div id="chat-messages" class="chat-messages">
+            <div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="9" y1="9" x2="15" y2="9" stroke-width="2" stroke-linecap="round"/>
+                <line x1="9" y1="13" x2="15" y2="13" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <p>No messages yet</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Send Message</h3>
+          <form id="message-form" class="message-form">
+            <div class="form-group">
+              <label class="form-label">Message Type</label>
+              <select id="message-type" class="form-select">
+                <option value="chat.message">Chat Message</option>
+                <option value="chat.notification">Notification</option>
+                <option value="chat.system">System Message</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Message</label>
+              <textarea
+                id="message-text"
+                class="form-textarea"
+                rows="3"
+                placeholder="Type your message..."
+              ></textarea>
+            </div>
+            <button type="submit" class="btn-send">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Send Message
+            </button>
+          </form>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Recent Notifications</h3>
+          <div id="notifications" class="notifications">
+            <div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p>No notifications</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">Statistics</h3>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-value" id="messages-published">0</div>
+              <div class="stat-label">Published</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="messages-received">0</div>
+              <div class="stat-label">Received</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/chat.ts"></script>
+  </body>
+</html>
