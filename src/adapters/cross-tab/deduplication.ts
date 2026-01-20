@@ -14,7 +14,7 @@ import type { CrossTabEnvelope, DedupeKey } from "./types";
  * // => "msg-123:client-abc"
  * ```
  */
-function createDedupeKey(messageId: string, clientId: string): DedupeKey {
+export function createDedupeKey(messageId: string, clientId: string): DedupeKey {
   return `${messageId}:${clientId}`;
 }
 

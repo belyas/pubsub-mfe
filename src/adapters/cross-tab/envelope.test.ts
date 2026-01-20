@@ -6,7 +6,6 @@ import {
   validateEnvelopeSize,
   validateAndSanitizeEnvelope,
   isTimestampValid,
-  createDedupeKey,
   ENVELOPE_VERSION,
   serializeEnvelope,
   deserializeEnvelope,
@@ -15,24 +14,6 @@ import {
 } from "./envelope";
 
 describe("Cross-Tab", () => {
-  describe("CreateDedupeKey", () => {
-    it("should create dedupe key from messageId and clientId", () => {
-      const key = createDedupeKey("msg-123", "client-abc");
-
-      expect(key).toBe("msg-123:client-abc");
-    });
-
-    it("should create unique keys for different messages", () => {
-      const key1 = createDedupeKey("msg-1", "client-a");
-      const key2 = createDedupeKey("msg-2", "client-a");
-      const key3 = createDedupeKey("msg-1", "client-b");
-
-      expect(key1).not.toBe(key2);
-      expect(key1).not.toBe(key3);
-      expect(key2).not.toBe(key3);
-    });
-  });
-
   describe("SerializeEnvelope/DeserializeEnvelope", () => {
     it("should serialize and deserialize envelope", () => {
       const envelope: CrossTabEnvelope = {

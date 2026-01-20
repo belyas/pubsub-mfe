@@ -5,7 +5,6 @@ import type {
   EnvelopeValidationErrorCode,
   ResolvedCrossTabConfig,
   ClientId,
-  DedupeKey,
   SequenceNumber,
 } from "./types";
 
@@ -14,6 +13,21 @@ import type {
  * Allows for future protocol evolution with backward compatibility.
  */
 export const ENVELOPE_VERSION = 1;
+
+// ---------------------------------------------------------------
+/**
+ * VULN-002: JSON.parse Without Size Check
+ * 
+ * Issue: No size check before parsing. Could be exploited with extremely large strings.
+
+Recommendation: Add size check before parsing:
+
+const MAX_ENVELOPE_SIZE = 512 * 1024; // 512KB
+if (data.length > MAX_ENVELOPE_SIZE) {
+  throw new Error('Envelope exceeds maximum size');
+}
+*/
+// ---------------------------------------------------------------
 
 /**
  * Serializes a CrossTabEnvelope to string (JSON).
@@ -29,6 +43,19 @@ export function serializeEnvelope(envelope: CrossTabEnvelope): string {
 export function deserializeEnvelope(data: string): CrossTabEnvelope {
   return JSON.parse(data) as CrossTabEnvelope;
 }
+
+// ---------------------------------------------------------------
+/**
+ * VULN-003: Missing Input Validation in createEnvelope
+ * 
+ * Issue: No validation that message has required fields.
+
+Recommendation: Add defensive checks:
+
+if (!message?.id || !message?.topic) {
+  throw new Error('Invalid message: missing required fields');
+}
+ */
 
 /**
  * Creates a CrossTabEnvelope from a PubSub Message.
@@ -51,13 +78,6 @@ export function createEnvelope<T = unknown>(
     version: ENVELOPE_VERSION,
     origin: globalThis.location?.origin || "",
   };
-}
-
-/**
- * Creates a deduplication key from message ID and client ID.
- */
-export function createDedupeKey(messageId: string, clientId: ClientId): DedupeKey {
-  return `${messageId}:${clientId}`;
 }
 
 /**

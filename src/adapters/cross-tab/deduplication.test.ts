@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DeduplicationCache, createDeduplicationCache } from "./deduplication";
+import { DeduplicationCache, createDedupeKey, createDeduplicationCache } from "./deduplication";
 import type { CrossTabEnvelope } from "./types";
 
 describe("Message Deduplication", () => {
@@ -505,6 +505,24 @@ describe("Message Deduplication", () => {
       expect(cache.isDuplicate(env2)).toBe(false); // Evicted
       expect(cache.isDuplicate(env3)).toBe(true); // Still present
       expect(cache.isDuplicate(env4)).toBe(true); // Just added
+    });
+  });
+
+  describe("CreateDedupeKey", () => {
+    it("should create dedupe key from messageId and clientId", () => {
+      const key = createDedupeKey("msg-123", "client-abc");
+
+      expect(key).toBe("msg-123:client-abc");
+    });
+
+    it("should create unique keys for different messages", () => {
+      const key1 = createDedupeKey("msg-1", "client-a");
+      const key2 = createDedupeKey("msg-2", "client-a");
+      const key3 = createDedupeKey("msg-1", "client-b");
+
+      expect(key1).not.toBe(key2);
+      expect(key1).not.toBe(key3);
+      expect(key2).not.toBe(key3);
     });
   });
 });
