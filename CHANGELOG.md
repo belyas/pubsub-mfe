@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.5.0](https://github.com/belyas/pubsub-mfe/compare/v0.4.0...v0.5.0) (2026-01-20)
+
+
+### Features
+
+* add bacthing mechanism and integrate it into the adapter with tests ([d667cd2](https://github.com/belyas/pubsub-mfe/commit/d667cd25b74f9bbb9c4c033c6a257dfbc338ba77))
+* add client iframe adapter functionality & add iframes integration tests ([16a7969](https://github.com/belyas/pubsub-mfe/commit/16a796955d54be681bb6a7baab8a22e2f9497009))
+* add host iframe adapter functionality ([bc3560b](https://github.com/belyas/pubsub-mfe/commit/bc3560b24b0aaed86428f9aa9f96ceee8a02ae33))
+
 ## [0.4.0](https://github.com/belyas/pubsub-mfe/compare/v0.3.0...v0.4.0) (2026-01-16)
 
 ## [0.3.0](https://github.com/belyas/pubsub-mfe/compare/v0.2.0...v0.3.0) (2026-01-16)
