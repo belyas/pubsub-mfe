@@ -61,6 +61,10 @@ export function createEnvelope<T = unknown>(
   clientId: ClientId,
   sequence?: SequenceNumber
 ): CrossTabEnvelope<T> {
+  if (!message?.id || !message?.topic) {
+    throw new Error("Invalid message: missing required fields");
+  }
+
   return {
     messageId: message.id,
     clientId,
