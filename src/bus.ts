@@ -49,7 +49,6 @@ interface ResolvedConfig {
   debug: boolean;
   retention?: RetentionConfig;
   rateLimit?: RateLimitConfig;
-  clonePayloads: boolean;
 }
 
 const DEFAULT_CONFIG: ResolvedConfig = {
@@ -61,7 +60,6 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   debug: false,
   retention: undefined,
   rateLimit: undefined,
-  clonePayloads: true,
 };
 
 /**
@@ -630,6 +628,8 @@ export class PubSubBusImpl implements PubSubBus {
   /**
    * Token bucket rate limiter.
    * Refills tokens based on elapsed time and checks if a token can be consumed.
+   *
+   * @TODO: Extend to support per-topic or per-pattern rate limiting.
    */
   private tryConsumeRateLimitToken(_topic: Topic): boolean {
     if (!this.config.rateLimit) {
