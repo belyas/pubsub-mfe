@@ -67,7 +67,7 @@ export class CrossTabAdapter {
     const maxMessageSize = config.maxMessageSize ?? DEFAULT_MAX_MESSAGE_SIZE_BYTES; // 256KB
     const expectedOrigin =
       config.expectedOrigin ??
-      (typeof window !== "undefined" ? window.location.origin : "http://localhost");
+      (typeof window !== "undefined" ? window.location.origin : "__INVALID_ORIGIN__");
     const debug = config.debug ?? false;
 
     this.config = {
