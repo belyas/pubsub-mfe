@@ -32,16 +32,22 @@ if (data.length > MAX_ENVELOPE_SIZE) {
 /**
  * Serializes a CrossTabEnvelope to string (JSON).
  */
-export function serializeEnvelope(envelope: CrossTabEnvelope): string {
-  return JSON.stringify(envelope);
+export function serializeEnvelope(
+  envelope: CrossTabEnvelope,
+  serializer: (value: unknown) => string = JSON.stringify
+): string {
+  return serializer(envelope);
 }
 
 /**
  * Deserializes a string to CrossTabEnvelope.
  * Throws if the string is not valid JSON.
  */
-export function deserializeEnvelope(data: string): CrossTabEnvelope {
-  return JSON.parse(data) as CrossTabEnvelope;
+export function deserializeEnvelope(
+  data: string,
+  deserializer: (text: string) => unknown = JSON.parse
+): CrossTabEnvelope {
+  return deserializer(data) as CrossTabEnvelope;
 }
 
 // ---------------------------------------------------------------
