@@ -13,21 +13,7 @@ import type {
  * Allows for future protocol evolution with backward compatibility.
  */
 export const ENVELOPE_VERSION = 1;
-
-// ---------------------------------------------------------------
-/**
- * VULN-002: JSON.parse Without Size Check
- * 
- * Issue: No size check before parsing. Could be exploited with extremely large strings.
-
-Recommendation: Add size check before parsing:
-
 const MAX_ENVELOPE_SIZE = 512 * 1024; // 512KB
-if (data.length > MAX_ENVELOPE_SIZE) {
-  throw new Error('Envelope exceeds maximum size');
-}
-*/
-// ---------------------------------------------------------------
 
 /**
  * Serializes a CrossTabEnvelope to string (JSON).
@@ -47,6 +33,10 @@ export function deserializeEnvelope(
   data: string,
   deserializer: (text: string) => unknown = JSON.parse
 ): CrossTabEnvelope {
+  if (data.length > MAX_ENVELOPE_SIZE) {
+    throw new Error(`Envelope exceeds maximum size: ${MAX_ENVELOPE_SIZE} bytes`);
+  }
+
   return deserializer(data) as CrossTabEnvelope;
 }
 
