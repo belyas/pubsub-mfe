@@ -7,6 +7,7 @@ import {
   joinTopic,
   clearMatcherCache,
   getMatcherCacheSize,
+  getCache,
 } from "./topic-matcher";
 
 describe("topic-matcher", () => {
@@ -25,6 +26,15 @@ describe("topic-matcher", () => {
         { type: "literal", value: "item" },
         { type: "literal", value: "add" },
       ]);
+    });
+
+    it("should evict oldest cache entry when cache size exceeds limit", () => {
+      for (let i = 0; i < 1001; i++) {
+        compileMatcher(`topic.${i}`);
+      }
+
+      expect(getMatcherCacheSize()).toBe(1000);
+      expect(getCache().has("topic.0")).toBe(false);
     });
 
     it("should compile a pattern with single-level wildcard (+)", () => {

@@ -36,7 +36,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "src",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "rollup -c --watch",

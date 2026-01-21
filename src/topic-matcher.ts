@@ -5,6 +5,7 @@ const SINGLE_WILDCARD = "+";
 const MULTI_WILDCARD = "#";
 // Cache for compiled matchers to avoid recompilation
 const matcherCache = new Map<TopicPattern, CompiledMatcher>();
+const MAX_CACHE_SIZE = 1000;
 
 /**
  * Compile a topic pattern into a matcher for efficient repeated matching.
@@ -65,6 +66,12 @@ export function compileMatcher(pattern: TopicPattern): CompiledMatcher {
     hasWildcards,
     segments: matcherSegments,
   };
+
+  if (matcherCache.size >= MAX_CACHE_SIZE) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const firstKey = matcherCache.keys().next().value!;
+    matcherCache.delete(firstKey);
+  }
 
   matcherCache.set(pattern, matcher);
 
@@ -195,4 +202,12 @@ export function clearMatcherCache(): void {
  */
 export function getMatcherCacheSize(): number {
   return matcherCache.size;
+}
+
+/**
+ * Get the matcher cache map.
+ * Useful for testing or diagnostics.
+ */
+export function getCache() {
+  return matcherCache;
 }
