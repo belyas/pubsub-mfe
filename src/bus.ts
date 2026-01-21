@@ -70,6 +70,7 @@ const DEFAULT_CONFIG: ResolvedConfig = {
  * This prevents prototype pollution and arbitrary property injection.
  */
 const ALLOWED_CONFIG_KEYS = Object.keys(DEFAULT_CONFIG);
+const DEFAULT_HISTORY_WINDOW_MS = 5 * 60 * 1000;
 
 export class PubSubBusImpl implements PubSubBus {
   private readonly config: ResolvedConfig;
@@ -289,7 +290,7 @@ export class PubSubBusImpl implements PubSubBus {
     }
 
     const now = getTimestamp();
-    let messages = this.retentionBuffer.getMessages(now - 300_000);
+    let messages = this.retentionBuffer.getMessages(now - DEFAULT_HISTORY_WINDOW_MS);
     const matcher = compileMatcher(topic);
     messages = messages.filter((msg) => matchTopic(msg.topic, matcher));
 

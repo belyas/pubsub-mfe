@@ -7,6 +7,9 @@ import { ENVELOPE_VERSION, validateAndSanitizeEnvelope } from "./envelope";
 import { RateLimiter, OriginValidator, MessageSizeValidator } from "./security";
 import { MessageBatcher } from "./batching";
 
+const DEFAULT_MAX_MESSAGE_SIZE_BYTES = 256 * 1024;
+const DEFAULT_DEDUPE_WINDOW_MS = 60000;
+
 /**
  * Cross-tab adapter that integrates with PubSubBus via hooks.
  *
@@ -59,9 +62,9 @@ export class CrossTabAdapter {
     const channelName = config.channelName ?? "pubsub-mfe";
     const enableLeadership = config.enableLeadership ?? false;
     const emitSystemEvents = config.emitSystemEvents ?? true;
-    const dedupeWindowMs = config.dedupeWindowMs ?? 60000;
+    const dedupeWindowMs = config.dedupeWindowMs ?? DEFAULT_DEDUPE_WINDOW_MS;
     const dedupeCacheSize = config.dedupeCacheSize ?? 1000;
-    const maxMessageSize = config.maxMessageSize ?? 262144; // 256KB
+    const maxMessageSize = config.maxMessageSize ?? DEFAULT_MAX_MESSAGE_SIZE_BYTES; // 256KB
     const expectedOrigin =
       config.expectedOrigin ??
       (typeof window !== "undefined" ? window.location.origin : "http://localhost");
