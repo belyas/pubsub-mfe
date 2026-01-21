@@ -67,6 +67,76 @@ describe("RateLimiter", () => {
       vi.useRealTimers();
     });
 
+    it("should handle exact boundary at maxBurst requests", () => {
+      const limiter = new RateLimiter({ maxPerSecond: 100, maxBurst: 10 });
+
+      // Consume exactly maxBurst tokens
+      for (let i = 0; i < 10; i++) {
+        expect(limiter.allowMessage()).toBe(true);
+      }
+
+      // Next message should be blocked
+      expect(limiter.allowMessage()).toBe(false);
+      expect(limiter.getStats().messagesBlocked).toBe(1);
+    });
+
+    it("should handle time boundary exactly at 1 second refill", () => {
+      vi.useFakeTimers();
+      const limiter = new RateLimiter({ maxPerSecond: 5, maxBurst: 5 });
+
+      // Drain bucket
+      for (let i = 0; i < 5; i++) {
+        expect(limiter.allowMessage()).toBe(true);
+      }
+
+      // Should be blocked
+      expect(limiter.allowMessage()).toBe(false);
+
+      // Advance exactly 1 second
+      vi.advanceTimersByTime(1000);
+
+      // Should have exactly 5 tokens available
+      expect(limiter.allowMessage()).toBe(true);
+      expect(limiter.allowMessage()).toBe(true);
+      expect(limiter.allowMessage()).toBe(true);
+      expect(limiter.allowMessage()).toBe(true);
+      expect(limiter.allowMessage()).toBe(true);
+
+      // Next should be blocked
+      expect(limiter.allowMessage()).toBe(false);
+
+      vi.useRealTimers();
+    });
+
+    it("should handle float precision in token calculations", () => {
+      vi.useFakeTimers();
+      const limiter = new RateLimiter({ maxPerSecond: 3, maxBurst: 10 });
+
+      // Drain exactly 3 tokens
+      limiter.allowMessage();
+      limiter.allowMessage();
+      limiter.allowMessage();
+
+      // Drain all remaining tokens (7 more)
+      for (let i = 0; i < 7; i++) {
+        limiter.allowMessage();
+      }
+
+      // Now bucket is empty - next should fail
+      expect(limiter.allowMessage()).toBe(false);
+
+      // Wait 335ms (1.005 tokens should refill)
+      vi.advanceTimersByTime(335);
+
+      // Should have refilled 1 token
+      expect(limiter.allowMessage()).toBe(true);
+
+      // Next should fail again (back to 0 tokens)
+      expect(limiter.allowMessage()).toBe(false);
+
+      vi.useRealTimers();
+    });
+
     it("should track blocked messages", () => {
       const limiter = new RateLimiter({ maxPerSecond: 100, maxBurst: 1 });
 

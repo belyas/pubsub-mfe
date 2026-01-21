@@ -179,6 +179,110 @@ describe("CrossTabAdapter", () => {
     });
   });
 
+  describe("Message ordering and timing", () => {
+    it("should handle message ordering with concurrent publishers", async () => {
+      vi.useFakeTimers();
+
+      const adapter1 = new CrossTabAdapter({
+        channelName: "test",
+        transport: mockTransport,
+        clientId: "client-1",
+        batchIntervalMs: 50,
+      });
+
+      const adapter2 = new CrossTabAdapter({
+        channelName: "test",
+        transport: mockTransport,
+        clientId: "client-2",
+        batchIntervalMs: 50,
+      });
+
+      adapter1.attach(bus);
+      adapter2.attach(bus);
+
+      // Publish from both adapters concurrently
+      bus.publish("test.1", { from: "client-1", n: 1 });
+      bus.publish("test.2", { from: "client-2", n: 2 });
+      bus.publish("test.3", { from: "client-1", n: 3 });
+
+      // Advance timers to trigger batch flush
+      await vi.advanceTimersByTimeAsync(50);
+
+      // All messages should be sent
+      expect(mockTransport.sentMessages.length).toBeGreaterThan(0);
+
+      vi.useRealTimers();
+    });
+
+    it("should handle batching edge case with exactly maxBatchSize", async () => {
+      vi.useFakeTimers();
+
+      const adapter = new CrossTabAdapter({
+        channelName: "test",
+        transport: mockTransport,
+        batchIntervalMs: 100,
+        maxBatchSize: 3,
+      });
+
+      adapter.attach(bus);
+
+      // Publish exactly maxBatchSize messages
+      bus.publish("test.1", { n: 1 });
+      bus.publish("test.2", { n: 2 });
+      bus.publish("test.3", { n: 3 });
+
+      // Should flush immediately (reached maxBatchSize)
+      expect(mockTransport.sentMessages).toHaveLength(3);
+
+      vi.useRealTimers();
+    });
+
+    it("should respect deduplication window boundaries", () => {
+      vi.useFakeTimers();
+
+      const adapter = new CrossTabAdapter({
+        channelName: "test",
+        transport: mockTransport,
+        dedupeWindowMs: 5000,
+      });
+
+      adapter.attach(bus);
+
+      const envelope: CrossTabEnvelope = {
+        messageId: "msg-1",
+        clientId: "other-client",
+        topic: "test",
+        payload: { value: 1 },
+        timestamp: Date.now(),
+        version: 1,
+        origin: TEST_ORIGIN,
+      };
+
+      // Receive message
+      mockTransport.simulateReceive(envelope);
+      vi.advanceTimersByTime(1000);
+
+      const stats1 = adapter.getStats();
+      expect(stats1.messagesReceived).toBe(1);
+      expect(stats1.messagesDeduplicated).toBe(0);
+
+      // Receive duplicate within window
+      mockTransport.simulateReceive(envelope);
+      const stats2 = adapter.getStats();
+      expect(stats2.messagesDeduplicated).toBe(1);
+
+      // Advance past deduplication window
+      vi.advanceTimersByTime(5000);
+
+      // Receive again (should be treated as new)
+      mockTransport.simulateReceive(envelope);
+      const stats3 = adapter.getStats();
+      expect(stats3.messagesReceived).toBe(2);
+
+      vi.useRealTimers();
+    });
+  });
+
   describe("Detach", () => {
     it("should detach from bus successfully", () => {
       const adapter = new CrossTabAdapter({

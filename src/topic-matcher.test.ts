@@ -137,6 +137,30 @@ describe("topic-matcher", () => {
 
       expect(matcher.segments[0]).toEqual({ type: "literal", value: "v2" });
     });
+
+    it("should handle single segment topics", () => {
+      const matcher = compileMatcher("cart");
+
+      expect(matcher.segments).toHaveLength(1);
+      expect(matcher.segments[0]).toEqual({ type: "literal", value: "cart" });
+    });
+
+    it("should reject topics with unicode characters", () => {
+      expect(() => compileMatcher("cart.item.ådd")).toThrow(
+        'segment "ådd" contains invalid characters'
+      );
+      expect(() => compileMatcher("cart.item.🚀")).toThrow("contains invalid characters");
+    });
+
+    it("should handle very long topics efficiently", () => {
+      const segments = Array.from({ length: 100 }, (_, i) => `segment${i}`);
+      const longTopic = segments.join(".");
+      const matcher = compileMatcher(longTopic);
+
+      expect(matcher.segments).toHaveLength(100);
+      expect(matcher.segments[0]).toEqual({ type: "literal", value: "segment0" });
+      expect(matcher.segments[99]).toEqual({ type: "literal", value: "segment99" });
+    });
   });
 
   describe("matchTopic", () => {

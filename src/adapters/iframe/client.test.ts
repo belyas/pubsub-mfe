@@ -867,4 +867,171 @@ describe("IframeClient", () => {
       expect(stats.disconnections).toBe(1);
     });
   });
+
+  describe("Handshake failure scenarios", () => {
+    it("should handle network timeout during handshake", async () => {
+      vi.useFakeTimers();
+
+      const config: IframeClientConfig = {
+        expectedHostOrigin: "https://host.example.com",
+        handshakeTimeout: 5000,
+      };
+
+      const client = new IframeClient(config);
+      const connectPromise = client.connect();
+
+      // Don't send any response - simulate network timeout
+      // Fast-forward past timeout
+      vi.advanceTimersByTime(5000);
+
+      await expect(connectPromise).rejects.toThrow("Handshake timeout");
+
+      vi.useRealTimers();
+    });
+
+    it("should handle iframe removed during handshake", async () => {
+      vi.useFakeTimers();
+
+      const config: IframeClientConfig = {
+        expectedHostOrigin: "https://host.example.com",
+        handshakeTimeout: 5000,
+        autoReconnect: false,
+      };
+
+      const client = new IframeClient(config);
+      const connectPromise = client.connect();
+
+      // Simulate SYN received
+      const synEnvelope: IframeSynEnvelope = {
+        type: "pubsub:SYN",
+        version: PROTOCOL_VERSION,
+      };
+      mockWindow.simulateMessage(synEnvelope, "https://host.example.com");
+
+      // But then timeout before ACK_CONFIRM (simulating iframe removal)
+      vi.advanceTimersByTime(5000);
+
+      await expect(connectPromise).rejects.toThrow("Handshake timeout");
+
+      vi.useRealTimers();
+    });
+
+    it("should handle multiple rapid reconnection attempts", async () => {
+      vi.useFakeTimers();
+
+      const config: IframeClientConfig = {
+        expectedHostOrigin: "https://host.example.com",
+        handshakeTimeout: 1000,
+        autoReconnect: true,
+      };
+
+      const client = new IframeClient(config);
+
+      // Start multiple connection attempts
+      const promise1 = client.connect();
+
+      // First attempt times out
+      vi.advanceTimersByTime(1000);
+
+      try {
+        await promise1;
+      } catch {
+        // Expected to fail
+      }
+
+      // Auto-reconnect should trigger
+      await vi.advanceTimersByTimeAsync(1100);
+
+      const stats = client.getStats();
+      expect(stats.connectionAttempts).toBeGreaterThan(1);
+
+      vi.useRealTimers();
+    });
+
+    it("should reject cross-origin attack attempts", async () => {
+      vi.useFakeTimers();
+      const config: IframeClientConfig = {
+        expectedHostOrigin: "https://trusted.example.com",
+      };
+
+      const client = new IframeClient(config);
+      const connectPromise = client.connect();
+
+      // Attacker tries to send SYN from different origin
+      const maliciousSyn: IframeSynEnvelope = {
+        type: "pubsub:SYN",
+        version: PROTOCOL_VERSION,
+      };
+      mockWindow.simulateMessage(maliciousSyn, "https://evil.com");
+
+      // Wait a bit
+      await vi.advanceTimersByTimeAsync(100);
+
+      // Client should still be waiting for legitimate handshake
+      const stats = client.getStats();
+      expect(stats.connected).toBe(false);
+
+      // Now send legitimate handshake
+      const mockPort = new MockMessagePort();
+      mockWindow.simulateMessage(maliciousSyn, "https://trusted.example.com");
+
+      const ackConfirmEnvelope: IframeAckConfirmEnvelope = {
+        type: "pubsub:ACK_CONFIRM",
+        version: PROTOCOL_VERSION,
+      };
+      mockWindow.simulateMessage(ackConfirmEnvelope, "https://trusted.example.com", [
+        mockPort as unknown as MessagePort,
+      ]);
+
+      await connectPromise;
+      expect(client.getStats().connected).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it("should reject messages with mismatched protocol version", async () => {
+      vi.useFakeTimers();
+
+      const config: IframeClientConfig = {
+        expectedHostOrigin: "https://host.example.com",
+      };
+
+      const client = new IframeClient(config);
+      const connectPromise = client.connect();
+
+      // Send SYN with wrong version
+      const wrongVersionSyn = {
+        type: "pubsub:SYN",
+        version: 999, // Wrong version
+      };
+      mockWindow.simulateMessage(wrongVersionSyn, "https://host.example.com");
+
+      // Wait a bit
+      vi.advanceTimersByTime(100);
+
+      // Should not connect with wrong version
+      expect(client.getStats().connected).toBe(false);
+
+      // Now send correct version
+      const mockPort = new MockMessagePort();
+      const correctSyn: IframeSynEnvelope = {
+        type: "pubsub:SYN",
+        version: PROTOCOL_VERSION,
+      };
+      mockWindow.simulateMessage(correctSyn, "https://host.example.com");
+
+      const ackConfirm: IframeAckConfirmEnvelope = {
+        type: "pubsub:ACK_CONFIRM",
+        version: PROTOCOL_VERSION,
+      };
+      mockWindow.simulateMessage(ackConfirm, "https://host.example.com", [
+        mockPort as unknown as MessagePort,
+      ]);
+
+      await connectPromise;
+      expect(client.getStats().connected).toBe(true);
+
+      vi.useRealTimers();
+    });
+  });
 });

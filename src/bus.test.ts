@@ -227,6 +227,106 @@ describe("PubSubBus", () => {
     });
   });
 
+  describe("Concurrent access scenarios", () => {
+    it("should handle multiple rapid publishes in same microtask", async () => {
+      const received: Message[] = [];
+
+      bus.subscribe("test.#", (msg) => received.push(msg));
+
+      // Publish multiple messages synchronously (before microtasks flush)
+      bus.publish("test.a", { n: 1 });
+      bus.publish("test.b", { n: 2 });
+      bus.publish("test.c", { n: 3 });
+      bus.publish("test.d", { n: 4 });
+      bus.publish("test.e", { n: 5 });
+
+      // Should have received nothing yet (async dispatch)
+      expect(received).toHaveLength(0);
+
+      // Flush microtasks
+      await flushMicrotasks();
+
+      // All messages should be received
+      expect(received).toHaveLength(5);
+      expect(received.map((m) => m.payload)).toEqual([
+        { n: 1 },
+        { n: 2 },
+        { n: 3 },
+        { n: 4 },
+        { n: 5 },
+      ]);
+    });
+
+    it("should handle subscribe/unsubscribe during publish", async () => {
+      const received: Message[] = [];
+      let unsubscribe: (() => void) | null = null;
+
+      unsubscribe = bus.subscribe("test", (msg) => {
+        received.push(msg);
+        // Unsubscribe during handler execution
+        if (unsubscribe) {
+          unsubscribe();
+        }
+      });
+
+      // Publish twice
+      bus.publish("test", { first: true });
+      await flushMicrotasks();
+
+      bus.publish("test", { second: true });
+      await flushMicrotasks();
+
+      // Should only receive first message (unsubscribed during first handler)
+      expect(received).toHaveLength(1);
+      expect(received[0].payload).toEqual({ first: true });
+    });
+
+    it("should handle dispose during active dispatch", async () => {
+      const received: Message[] = [];
+      let disposeCallCount = 0;
+
+      bus.subscribe("test", (msg) => {
+        received.push(msg);
+        // Dispose bus during handler execution
+        disposeCallCount++;
+        bus.dispose();
+      });
+
+      bus.subscribe("test", (msg) => {
+        received.push(msg);
+      });
+
+      bus.publish("test", { value: 42 });
+      await flushMicrotasks();
+
+      // Both handlers should still execute (dispatch was already started)
+      expect(received).toHaveLength(2);
+      expect(disposeCallCount).toBe(1);
+
+      // But subsequent operations should fail
+      expect(() => bus.publish("test", {})).toThrow("disposed");
+    });
+
+    it("should handle rapid subscribe/unsubscribe cycles", async () => {
+      const received: Message[] = [];
+
+      // Rapid subscribe/unsubscribe
+      for (let i = 0; i < 10; i++) {
+        const unsub = bus.subscribe("test", (msg) => received.push(msg));
+        if (i % 2 === 0) {
+          unsub(); // Unsubscribe even-numbered subscriptions
+        }
+      }
+
+      bus.publish("test", { value: 1 });
+      await flushMicrotasks();
+
+      // Should have 5 active subscriptions (odd-numbered ones)
+      expect(received).toHaveLength(5);
+      expect(bus.handlerCount("test")).toBe(5);
+    });
+  });
+
   describe("Source filtering", () => {
     it("should exclude filter ignores messages from specified sources", async () => {
       const received: Message[] = [];
