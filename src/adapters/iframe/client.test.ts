@@ -21,7 +21,6 @@ class MockMessagePort {
       this.listeners.set(type, new Set());
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.listeners.get(type)!.add(listener);
   }
 
@@ -68,7 +67,6 @@ class MockWindow {
       this.listeners.set(type, new Set());
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.listeners.get(type)!.add(listener);
   }
 

@@ -16,7 +16,7 @@ class MockBroadcastChannel {
     if (!MockBroadcastChannel.channels.has(name)) {
       MockBroadcastChannel.channels.set(name, []);
     }
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+
     MockBroadcastChannel.channels.get(name)!.push(this);
   }
 

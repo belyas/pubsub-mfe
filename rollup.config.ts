@@ -87,6 +87,25 @@ const iframeAdapterBundle: RollupOptions = {
   },
 };
 
+const historyAdapterBundle: RollupOptions = {
+  input: "src/adapters/history/index.ts",
+  output: {
+    file: "dist/adapters/history.js",
+    format: "esm",
+    sourcemap: true,
+    generatedCode: {
+      constBindings: true,
+    },
+    exports: "named",
+  },
+  plugins: [resolve(), typescriptPlugin],
+  treeshake: {
+    moduleSideEffects: false,
+    propertyReadSideEffects: false,
+    unknownGlobalSideEffects: false,
+  },
+};
+
 const dtsBundle: RollupOptions = {
   input: "src/index.ts",
   output: {
@@ -123,18 +142,29 @@ const iframeAdapterDtsBundle: RollupOptions = {
   plugins: [dts()],
 };
 
+const historyAdapterDtsBundle: RollupOptions = {
+  input: "src/adapters/history/index.ts",
+  output: {
+    file: "dist/adapters/history.d.ts",
+    format: "esm",
+  },
+  plugins: [dts()],
+};
+
 // In watch mode, skip dts bundles for faster iteration
 export default defineConfig(
   isWatchMode
-    ? [mainBundle, workerBundle, adapterBundle, iframeAdapterBundle]
+    ? [mainBundle, workerBundle, adapterBundle, iframeAdapterBundle, historyAdapterBundle]
     : [
         mainBundle,
         workerBundle,
         adapterBundle,
         iframeAdapterBundle,
+        historyAdapterBundle,
         dtsBundle,
         workerDtsBundle,
         adapterDtsBundle,
         iframeAdapterDtsBundle,
+        historyAdapterDtsBundle,
       ]
 );

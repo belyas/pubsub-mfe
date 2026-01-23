@@ -21,7 +21,6 @@ class MockIframe {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.listeners.get(event)!.add(handler);
   }
 
@@ -367,7 +366,6 @@ describe("IframeHost", () => {
         },
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       mockPort.onmessage!(new MessageEvent("message", { data: message }));
 
       // Wait a tick for async message handling
@@ -445,7 +443,6 @@ describe("IframeHost", () => {
         version: PROTOCOL_VERSION,
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       mockPort.onmessage!(new MessageEvent("message", { data: disconnect }));
 
       const stats = host.getStats();
@@ -735,7 +732,6 @@ describe("IframeHost", () => {
         },
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       mockPort.onmessage!(new MessageEvent("message", { data: message }));
 
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -806,7 +802,6 @@ describe("IframeHost", () => {
         },
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       validationMockPort.onmessage!(new MessageEvent("message", { data: invalidMessage }));
 
       await new Promise((resolve) => setTimeout(resolve, 10));

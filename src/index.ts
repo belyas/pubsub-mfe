@@ -84,3 +84,12 @@ export {
 
 // Adapter types
 export type { BusHooks } from "./types";
+
+// History adapter types
+export type {
+  HistoryAdapterConfig,
+  HistoryAdapterStats,
+  HistoryQueryOptions,
+  StoredMessage,
+  GarbageCollectionResult,
+} from "./adapters/history/types";
