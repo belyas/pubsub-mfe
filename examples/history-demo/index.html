@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PubSub MFE - History Demo (Dashboard)</title>
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="header-content">
+          <h1 class="logo">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="12" y1="22.08" x2="12" y2="12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            History Demo - Dashboard
+          </h1>
+          <div class="header-subtitle">IndexedDB Ledger with Cross-Tab Micro-frontends</div>
+        </div>
+        <div class="header-actions">
+          <a href="/orders.html" target="_blank" class="btn btn-secondary">
+            Open Orders Tab
+          </a>
+          <a href="/inventory.html" target="_blank" class="btn btn-secondary">
+            Open Inventory Tab
+          </a>
+        </div>
+      </header>
+
+      <main class="main">
+        <aside class="sidebar">
+          <div class="panel">
+            <h2 class="panel-title">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 20h9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Control Panel
+            </h2>
+
+            <div class="section">
+              <h3 class="section-title">Adapter Status</h3>
+              <div class="status-grid">
+                <div class="status-item" id="history-status">
+                  <div class="status-indicator status-pending"></div>
+                  <div class="status-label">History Adapter</div>
+                </div>
+                <div class="status-item" id="crosstab-status">
+                  <div class="status-indicator status-pending"></div>
+                  <div class="status-label">Cross-Tab Adapter</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Storage Statistics</h3>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <div class="stat-value" id="messages-stored">0</div>
+                  <div class="stat-label">Messages Stored</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="messages-gc">0</div>
+                  <div class="stat-label">Messages GC'd</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="duplicates-skipped">0</div>
+                  <div class="stat-label">Duplicates Skipped</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="gc-cycles">0</div>
+                  <div class="stat-label">GC Cycles</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Publish Event</h3>
+              <form id="publish-form" class="form">
+                <div class="form-group">
+                  <label class="form-label" for="topic">Topic</label>
+                  <select id="topic" class="form-select">
+                    <option value="orders.created">orders.created</option>
+                    <option value="orders.updated">orders.updated</option>
+                    <option value="orders.shipped">orders.shipped</option>
+                    <option value="inventory.updated">inventory.updated</option>
+                    <option value="inventory.low-stock">inventory.low-stock</option>
+                    <option value="system.alert">system.alert</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="payload">Payload (JSON)</label>
+                  <textarea
+                    id="payload"
+                    class="form-textarea"
+                    rows="4"
+                    placeholder='{"key": "value"}'
+                  >{"orderId": "ORD-001", "amount": 99.99}</textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                  Publish Event
+                </button>
+              </form>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Query History</h3>
+              <form id="query-form" class="form">
+                <div class="form-group">
+                  <label class="form-label" for="query-topic">Topic Pattern</label>
+                  <input
+                    type="text"
+                    id="query-topic"
+                    class="form-input"
+                    placeholder="e.g., orders.#, inventory.+"
+                    value="orders.#"
+                  />
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label" for="query-limit">Limit</label>
+                    <input
+                      type="number"
+                      id="query-limit"
+                      class="form-input"
+                      value="10"
+                      min="1"
+                      max="100"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="query-from">From (minutes ago)</label>
+                    <input
+                      type="number"
+                      id="query-from"
+                      class="form-input"
+                      value="60"
+                      min="1"
+                    />
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                  Query History
+                </button>
+              </form>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Actions</h3>
+              <div class="button-group">
+                <button id="clear-history" class="btn btn-danger">
+                  Clear All History
+                </button>
+                <button id="force-gc" class="btn btn-warning">
+                  Force GC
+                </button>
+                <button id="refresh-stats" class="btn btn-secondary">
+                  Refresh Stats
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="content">
+          <div class="content-header">
+            <h2>Event Log</h2>
+            <button id="clear-log" class="btn btn-sm btn-secondary">Clear Log</button>
+          </div>
+          <div class="event-log" id="event-log">
+            <div class="log-entry log-info">
+              <span class="log-time">--:--:--</span>
+              <span class="log-source">system</span>
+              <span class="log-message">Initializing dashboard...</span>
+            </div>
+          </div>
+
+          <div class="content-header" style="margin-top: 1rem;">
+            <h2>History Query Results</h2>
+            <span id="query-count" class="badge">0 messages</span>
+          </div>
+          <div class="history-results" id="history-results">
+            <div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="10" stroke-width="2"/>
+                <line x1="12" y1="8" x2="12" y2="12" stroke-width="2" stroke-linecap="round"/>
+                <line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <p>No history results yet. Use the query form to search.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/src/dashboard.ts"></script>
+  </body>
+</html>

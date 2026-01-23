@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PubSub MFE - Orders Micro-frontend</title>
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+    <div class="app mfe-app">
+      <header class="header mfe-header">
+        <div class="header-content">
+          <h1 class="logo">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke-width="2"/>
+              <line x1="8" y1="21" x2="16" y2="21" stroke-width="2" stroke-linecap="round"/>
+              <line x1="12" y1="17" x2="12" y2="21" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Orders MFE
+          </h1>
+          <div class="header-subtitle">Late-Joiner Tab (Opens with history replay)</div>
+        </div>
+        <div class="connection-badge" id="connection-badge">
+          <span class="badge badge-pending">Connecting...</span>
+        </div>
+      </header>
+
+      <main class="main mfe-main">
+        <aside class="sidebar mfe-sidebar">
+          <div class="panel">
+            <h2 class="panel-title">Late-Joiner Controls</h2>
+
+            <div class="section">
+              <h3 class="section-title">History Replay</h3>
+              <p class="section-description">
+                This tab retrieves historical orders from IndexedDB when it opens.
+                Messages published in other tabs are persisted and available here.
+              </p>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <div class="stat-value" id="replayed-count">0</div>
+                  <div class="stat-label">Messages Replayed</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="live-count">0</div>
+                  <div class="stat-label">Live Messages</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Create Order</h3>
+              <form id="order-form" class="form">
+                <div class="form-group">
+                  <label class="form-label" for="customer">Customer Name</label>
+                  <input
+                    type="text"
+                    id="customer"
+                    class="form-input"
+                    placeholder="John Doe"
+                    value="Alice Smith"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="product">Product</label>
+                  <input
+                    type="text"
+                    id="product"
+                    class="form-input"
+                    placeholder="Widget Pro"
+                    value="Widget Pro"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="amount">Amount ($)</label>
+                  <input
+                    type="number"
+                    id="amount"
+                    class="form-input"
+                    value="149.99"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <button type="submit" class="btn btn-primary">
+                  Create Order
+                </button>
+              </form>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Quick Actions</h3>
+              <div class="button-group">
+                <button id="replay-history" class="btn btn-secondary">
+                  Re-fetch History
+                </button>
+                <button id="ship-random" class="btn btn-secondary">
+                  Ship Random Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="content mfe-content">
+          <div class="content-header">
+            <h2>Orders Feed</h2>
+            <div class="header-actions">
+              <span id="feed-count" class="badge">0 orders</span>
+              <button id="clear-feed" class="btn btn-sm btn-secondary">Clear</button>
+            </div>
+          </div>
+          
+          <div class="orders-list" id="orders-list">
+            <div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="7" y1="7" x2="7.01" y2="7" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <p>No orders yet. History will load automatically.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/src/orders.ts"></script>
+  </body>
+</html>

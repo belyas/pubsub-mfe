@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PubSub MFE - Inventory Micro-frontend</title>
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+    <div class="app mfe-app inventory-app">
+      <header class="header mfe-header">
+        <div class="header-content">
+          <h1 class="logo">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="12" y1="22.08" x2="12" y2="12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Inventory MFE
+          </h1>
+          <div class="header-subtitle">Late-Joiner Tab (Cross-tab sync with history)</div>
+        </div>
+        <div class="connection-badge" id="connection-badge">
+          <span class="badge badge-pending">Connecting...</span>
+        </div>
+      </header>
+
+      <main class="main mfe-main">
+        <aside class="sidebar mfe-sidebar">
+          <div class="panel">
+            <h2 class="panel-title">Inventory Controls</h2>
+
+            <div class="section">
+              <h3 class="section-title">History Status</h3>
+              <p class="section-description">
+                This tab syncs inventory events from all tabs via IndexedDB.
+                Opening this tab late still shows all historical updates.
+              </p>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <div class="stat-value" id="history-count">0</div>
+                  <div class="stat-label">From History</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="realtime-count">0</div>
+                  <div class="stat-label">Real-time Updates</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Update Inventory</h3>
+              <form id="inventory-form" class="form">
+                <div class="form-group">
+                  <label class="form-label" for="sku">SKU</label>
+                  <input
+                    type="text"
+                    id="sku"
+                    class="form-input"
+                    placeholder="WIDGET-001"
+                    value="WIDGET-001"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="quantity">Quantity</label>
+                  <input
+                    type="number"
+                    id="quantity"
+                    class="form-input"
+                    value="50"
+                    min="0"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="action">Action</label>
+                  <select id="action" class="form-select">
+                    <option value="add">Add Stock</option>
+                    <option value="remove">Remove Stock</option>
+                    <option value="set">Set Stock Level</option>
+                  </select>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                  Update Inventory
+                </button>
+              </form>
+            </div>
+
+            <div class="section">
+              <h3 class="section-title">Quick Actions</h3>
+              <div class="button-group">
+                <button id="low-stock-alert" class="btn btn-warning">
+                  Trigger Low Stock Alert
+                </button>
+                <button id="reload-history" class="btn btn-secondary">
+                  Reload History
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="content mfe-content">
+          <div class="content-header">
+            <h2>Inventory Events</h2>
+            <div class="header-actions">
+              <span id="events-count" class="badge">0 events</span>
+              <button id="clear-events" class="btn btn-sm btn-secondary">Clear</button>
+            </div>
+          </div>
+          
+          <div class="inventory-list" id="inventory-list">
+            <div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke-width="2"/>
+              </svg>
+              <p>No inventory events yet. History will load automatically.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/src/inventory.ts"></script>
+  </body>
+</html>
