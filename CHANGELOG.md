@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.6.0](https://github.com/belyas/pubsub-mfe/compare/v0.5.0...v0.6.0) (2026-01-23)
+
+
+### Features
+
+* add indexdb ledger ([da8550a](https://github.com/belyas/pubsub-mfe/commit/da8550a14c7dae414b5860e4e07234896f0d92eb))
+
+
+### Documentation
+
+* add example application to demonstrate indexdb functionality with the bus ([a558a22](https://github.com/belyas/pubsub-mfe/commit/a558a221c2ff0e0ecd69dd656b609ce6a15bd000))
+
 ## [0.5.0](https://github.com/belyas/pubsub-mfe/compare/v0.4.0...v0.5.0) (2026-01-20)
 
 
