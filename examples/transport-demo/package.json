@@ -1,0 +1,15 @@
+{
+  "name": "transport-demo",
+  "version": "1.0.0",
+  "description": "Demo app to test SharedWorker, Storage, and Auto transport selection",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^6.0.7",
+    "typescript": "^5.7.3"
+  }
+}

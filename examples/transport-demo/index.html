@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transport Demo - PubSub MFE</title>
+    <link rel="stylesheet" href="./src/styles/main.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🚀 Cross-Tab Transport Demo</h1>
+        <p class="subtitle">Test SharedWorker, Storage, and Auto transport selection</p>
+      </header>
+
+      <div class="demo-grid">
+        <section class="panel transport-panel">
+          <h2>🎛️ Transport Selection</h2>
+          
+          <div class="transport-options">
+            <label class="transport-option">
+              <input type="radio" name="transport" value="auto" checked />
+              <div class="option-content">
+                <strong>Auto (Recommended)</strong>
+                <small>Automatic fallback: SharedWorker → BroadcastChannel → Storage</small>
+              </div>
+            </label>
+
+            <label class="transport-option">
+              <input type="radio" name="transport" value="sharedworker" />
+              <div class="option-content">
+                <strong>SharedWorker</strong>
+                <small>Central broker with inline worker (best performance)</small>
+              </div>
+            </label>
+
+            <label class="transport-option">
+              <input type="radio" name="transport" value="broadcast-channel" />
+              <div class="option-content">
+                <strong>BroadcastChannel</strong>
+                <small>Native browser API (good compatibility)</small>
+              </div>
+            </label>
+
+            <label class="transport-option">
+              <input type="radio" name="transport" value="storage" />
+              <div class="option-content">
+                <strong>Storage</strong>
+                <small>localStorage + StorageEvent (universal fallback)</small>
+              </div>
+            </label>
+          </div>
+
+          <button id="connect-btn" class="btn btn-primary">Connect</button>
+          <button id="disconnect-btn" class="btn btn-secondary" disabled>Disconnect</button>
+        </section>
+
+        <section class="panel status-panel">
+          <h2>📊 Connection Status</h2>
+          
+          <div class="status-grid">
+            <div class="status-item">
+              <span class="status-label">Transport:</span>
+              <span id="transport-type" class="status-value">-</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Status:</span>
+              <span id="connection-status" class="status-value status-disconnected">Disconnected</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Client ID:</span>
+              <span id="client-id" class="status-value">-</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Messages Sent:</span>
+              <span id="sent-count" class="status-value">0</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Messages Received:</span>
+              <span id="received-count" class="status-value">0</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Fallback Chain:</span>
+              <span id="fallback-chain" class="status-value">-</span>
+            </div>
+          </div>
+
+          <div id="fallback-log" class="fallback-log"></div>
+        </section>
+      </div>
+
+      <section class="panel messaging-panel">
+        <h2>💬 Send Messages</h2>
+        
+        <div class="message-controls">
+          <input 
+            type="text" 
+            id="message-input" 
+            placeholder="Type your message..." 
+            disabled 
+          />
+          <button id="send-btn" class="btn btn-primary" disabled>Send</button>
+        </div>
+
+        <div class="quick-actions">
+          <button class="btn btn-small" data-action="broadcast">🔊 Broadcast Test</button>
+          <button class="btn btn-small" data-action="spam">⚡ Spam 10 Messages</button>
+          <button class="btn btn-small" data-action="large">📦 Large Payload</button>
+          <button class="btn btn-small" data-action="stress">🔥 Stress Test (100)</button>
+        </div>
+      </section>
+
+      <section class="panel log-panel">
+        <div class="log-header">
+          <h2>📜 Message Log</h2>
+          <button id="clear-log-btn" class="btn btn-small">Clear</button>
+        </div>
+        <div id="message-log" class="message-log"></div>
+      </section>
+
+      <section class="panel instructions-panel">
+        <h2>📖 Instructions</h2>
+        <ol>
+          <li>Select a transport type (or use Auto for automatic selection)</li>
+          <li>Click <strong>Connect</strong> to initialize the transport</li>
+          <li>Open this page in <strong>multiple tabs/windows</strong> to test cross-tab communication</li>
+          <li>Send messages and see them appear in all connected tabs</li>
+          <li>Try different transports to compare behavior</li>
+        </ol>
+
+        <div class="info-box">
+          <strong>💡 Tips:</strong>
+          <ul>
+            <li><strong>SharedWorker:</strong> Most efficient, uses a central broker. Best for production.</li>
+            <li><strong>BroadcastChannel:</strong> Native API, good performance. Widely supported.</li>
+            <li><strong>Storage:</strong> Universal fallback using localStorage. Works everywhere.</li>
+            <li><strong>Auto:</strong> Tries SharedWorker first, falls back automatically.</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
