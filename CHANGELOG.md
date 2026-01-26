@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.7.0](https://github.com/belyas/pubsub-mfe/compare/v0.6.0...v0.7.0) (2026-01-26)
+
+
+### Features
+
+* add auto selection transport ([2c65949](https://github.com/belyas/pubsub-mfe/commit/2c659496bcd2200ab3d830840f25025ddd203093))
+* add shareworked transport ([7883796](https://github.com/belyas/pubsub-mfe/commit/7883796939428f10848796869669ef57aa69d964))
+* add storage transport ([945f0ab](https://github.com/belyas/pubsub-mfe/commit/945f0ab6c448b2a1202bf45eca5df6f654a50dd9))
+* add worker broker implementation ([057d9c3](https://github.com/belyas/pubsub-mfe/commit/057d9c3e4636544747303f80d0ded80810300f97))
+* add worker broker implementation ([287dc54](https://github.com/belyas/pubsub-mfe/commit/287dc54cee3edee4092c5c84132c1eab6627e7b8))
+
 ## [0.6.0](https://github.com/belyas/pubsub-mfe/compare/v0.5.0...v0.6.0) (2026-01-23)
 
 

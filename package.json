@@ -1,6 +1,6 @@
 {
   "name": "@belyas/pubsub-mfe",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Lightweight browser Pub/Sub for microfrontends with cross-tab delivery and history replay capabilities.",
   "author": "Yassine Belkaid",
   "license": "Apache-2.0",
