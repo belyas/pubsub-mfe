@@ -1,12 +1,32 @@
 export { CrossTabAdapter, createCrossTabAdapter } from "./adapter";
 
 export { BroadcastChannelTransport } from "./transports/broadcast-channel";
+export {
+  SharedWorkerTransport,
+  createSharedWorkerTransport,
+  WorkerMessageType,
+} from "./transports/shared-worker";
+export { StorageTransport, createStorageTransport } from "./transports/storage";
+export {
+  createAutoTransport,
+  createTransport,
+  getBestAvailableTransport,
+  getAvailableTransports,
+  isSharedWorkerAvailable,
+  isBroadcastChannelAvailable,
+  isStorageAvailable,
+} from "./transports/auto";
+
+export type { Transport } from "./types";
+export type { BroadcastChannelTransportConfig } from "./transports/broadcast-channel";
+export type { SharedWorkerTransportConfig, WorkerMessage } from "./transports/shared-worker";
+export type { StorageTransportConfig } from "./transports/storage";
+export type { TransportType, AutoTransportOptions, AutoTransportResult } from "./transports/auto";
 
 export type {
   CrossTabAdapterConfig,
   CrossTabStats,
   CrossTabEnvelope,
-  Transport,
   ClientId,
   DedupeKey,
   EnvelopeValidationResult,

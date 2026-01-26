@@ -24,6 +24,7 @@ export default [
         window: 'readonly',
         document: 'readonly',
         performance: 'readonly',
+        localStorage: 'readonly',
       },
     },
     plugins: {
@@ -56,6 +57,19 @@ export default [
   },
   {
     files: ['**/*.test.ts', '**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+    },
+  },
+  {
+    files: ['**/*-worker.ts'],
+    languageOptions: {
+      globals: {
+        self: 'readonly',
+        crypto: 'readonly',
+      },
+    },
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
