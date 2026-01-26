@@ -94,10 +94,6 @@ importers:
         version: 5.4.21(@types/node@20.19.30)
 
   examples/transport-demo:
-    dependencies:
-      '@belyas/pubsub-mfe':
-        specifier: workspace:*
-        version: link:../..
     devDependencies:
       typescript:
         specifier: ^5.7.3

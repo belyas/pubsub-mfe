@@ -30,6 +30,22 @@
       "types": "./dist/adapters/cross-tab.d.ts",
       "import": "./dist/adapters/cross-tab.js"
     },
+    "./adapters/cross-tab/transports/broadcast-channel": {
+      "types": "./dist/adapters/cross-tab/transports/broadcast-channel.d.ts",
+      "import": "./dist/adapters/cross-tab/transports/broadcast-channel.js"
+    },
+    "./adapters/cross-tab/transports/shared-worker": {
+      "types": "./dist/adapters/cross-tab/transports/shared-worker.d.ts",
+      "import": "./dist/adapters/cross-tab/transports/shared-worker.js"
+    },
+    "./adapters/cross-tab/transports/storage": {
+      "types": "./dist/adapters/cross-tab/transports/storage.d.ts",
+      "import": "./dist/adapters/cross-tab/transports/storage.js"
+    },
+    "./adapters/cross-tab/transports/auto": {
+      "types": "./dist/adapters/cross-tab/transports/auto.d.ts",
+      "import": "./dist/adapters/cross-tab/transports/auto.js"
+    },
     "./adapters/iframe": {
       "types": "./dist/adapters/iframe.d.ts",
       "import": "./dist/adapters/iframe.js"
@@ -37,13 +53,17 @@
     "./adapters/history": {
       "types": "./dist/adapters/history.d.ts",
       "import": "./dist/adapters/history.js"
+    },
+    "./workers/cross-tab-shared-worker-broker": {
+      "import": "./dist/workers/cross-tab-shared-worker-broker.js"
     }
   },
   "files": [
     "dist",
     "src",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "package.json"
   ],
   "scripts": {
     "dev": "rollup -c --watch",

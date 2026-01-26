@@ -7,6 +7,8 @@ import {
 } from "./shared-worker";
 import { TransportError, TransportErrorCode } from "./base";
 
+const MOCK_WORKER_URL = "blob:mock-worker-url";
+
 class MockMessagePort {
   onmessage: ((event: MessageEvent) => void) | null = null;
   onmessageerror: ((event: MessageEvent) => void) | null = null;
@@ -212,7 +214,10 @@ describe("SharedWorker Transport", () => {
   describe("Initialization", () => {
     it("should create transport with SharedWorker", async () => {
       vi.useFakeTimers();
-      const transport = new SharedWorkerTransport({ channelName: "test-channel" });
+      const transport = new SharedWorkerTransport({
+        channelName: "test-channel",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       expect(transport.name).toBe("SharedWorker");
       expect(transport.isAvailable()).toBe(true);
@@ -226,7 +231,10 @@ describe("SharedWorker Transport", () => {
     });
 
     it("should generate client ID if not provided", async () => {
-      const transport = new SharedWorkerTransport({ channelName: "test" });
+      const transport = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -242,6 +250,7 @@ describe("SharedWorker Transport", () => {
       const transport = new SharedWorkerTransport({
         channelName: "test",
         clientId: customId,
+        workerUrl: MOCK_WORKER_URL,
       });
 
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -260,6 +269,7 @@ describe("SharedWorker Transport", () => {
       expect(() => {
         new SharedWorkerTransport({
           channelName: "test",
+          workerUrl: MOCK_WORKER_URL,
           onError,
           onFallback,
         });
@@ -274,10 +284,9 @@ describe("SharedWorker Transport", () => {
     });
 
     it("should use custom worker URL if provided", () => {
-      const customUrl = "https://example.com/worker.js";
       const transport = new SharedWorkerTransport({
         channelName: "test",
-        workerUrl: customUrl,
+        workerUrl: MOCK_WORKER_URL,
       });
 
       expect(transport.isAvailable()).toBe(true);
@@ -288,6 +297,7 @@ describe("SharedWorker Transport", () => {
       const transport = new SharedWorkerTransport({
         channelName: "test",
         debug: true,
+        workerUrl: MOCK_WORKER_URL,
       });
 
       expect(transport.isAvailable()).toBe(true);
@@ -297,7 +307,10 @@ describe("SharedWorker Transport", () => {
 
   describe("Send and Receive", () => {
     it("should send message after registration", async () => {
-      const transport = new SharedWorkerTransport({ channelName: "test" });
+      const transport = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -316,7 +329,10 @@ describe("SharedWorker Transport", () => {
     });
 
     it("should queue messages before registration", () => {
-      const transport = new SharedWorkerTransport({ channelName: "test" });
+      const transport = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       const envelope: CrossTabEnvelope = {
         messageId: "msg-1",
@@ -335,8 +351,14 @@ describe("SharedWorker Transport", () => {
     });
 
     it("should receive messages from other clients", async () => {
-      const transport1 = new SharedWorkerTransport({ channelName: "test" });
-      const transport2 = new SharedWorkerTransport({ channelName: "test" });
+      const transport1 = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
+      const transport2 = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       const received: CrossTabEnvelope[] = [];
       transport2.onMessage((envelope) => {
@@ -369,7 +391,10 @@ describe("SharedWorker Transport", () => {
     });
 
     it("should not receive own messages", async () => {
-      const transport = new SharedWorkerTransport({ channelName: "test" });
+      const transport = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       const received: CrossTabEnvelope[] = [];
       transport.onMessage((envelope) => {
@@ -399,8 +424,14 @@ describe("SharedWorker Transport", () => {
     });
 
     it("should handle multiple message handlers", async () => {
-      const transport1 = new SharedWorkerTransport({ channelName: "test" });
-      const transport2 = new SharedWorkerTransport({ channelName: "test" });
+      const transport1 = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
+      const transport2 = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       const received1: CrossTabEnvelope[] = [];
       const received2: CrossTabEnvelope[] = [];
@@ -447,6 +478,7 @@ describe("SharedWorker Transport", () => {
         reconnectAttempts: 2,
         reconnectDelayMs: 10,
         onFallback,
+        workerUrl: MOCK_WORKER_URL,
       });
 
       await new Promise((resolve) => setTimeout(resolve, 20));
@@ -474,6 +506,7 @@ describe("SharedWorker Transport", () => {
         channelName: "test",
         reconnectAttempts: 2,
         reconnectDelayMs: 10,
+        workerUrl: MOCK_WORKER_URL,
         onFallback,
         onError,
       });
@@ -508,6 +541,7 @@ describe("SharedWorker Transport", () => {
         channelName: "test",
         reconnectAttempts: 3,
         reconnectDelayMs: 10,
+        workerUrl: MOCK_WORKER_URL,
       });
 
       vi.advanceTimersByTime(20);
@@ -523,7 +557,10 @@ describe("SharedWorker Transport", () => {
   describe("Cleanup", () => {
     it("should clean up resources on close", async () => {
       vi.useFakeTimers();
-      const transport = new SharedWorkerTransport({ channelName: "test" });
+      const transport = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       vi.advanceTimersByTime(20);
       expect(transport.isConnected()).toBe(true);
@@ -536,7 +573,10 @@ describe("SharedWorker Transport", () => {
 
     it("should not send messages after close", async () => {
       vi.useFakeTimers();
-      const transport = new SharedWorkerTransport({ channelName: "test" });
+      const transport = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       vi.advanceTimersByTime(20);
 
@@ -562,6 +602,7 @@ describe("SharedWorker Transport", () => {
       const transport = new SharedWorkerTransport({
         channelName: "test",
         reconnectDelayMs: 100,
+        workerUrl: MOCK_WORKER_URL,
       });
 
       vi.advanceTimersByTime(20);
@@ -582,37 +623,6 @@ describe("SharedWorker Transport", () => {
       vi.advanceTimersByTime(150);
       vi.useRealTimers();
     });
-
-    it("should revoke Blob URL on close", async () => {
-      vi.useFakeTimers();
-      const revokeSpy = vi.spyOn(URL, "revokeObjectURL");
-      const transport = new SharedWorkerTransport({ channelName: "test" });
-
-      vi.advanceTimersByTime(20);
-      transport.close();
-
-      expect(revokeSpy).toHaveBeenCalled();
-      revokeSpy.mockRestore();
-      vi.useRealTimers();
-    });
-
-    it("should not revoke external worker URL", async () => {
-      vi.useFakeTimers();
-      const revokeSpy = vi.spyOn(URL, "revokeObjectURL");
-
-      const transport = new SharedWorkerTransport({
-        channelName: "test",
-        workerUrl: "https://example.com/worker.js",
-      });
-
-      vi.advanceTimersByTime(20);
-      transport.close();
-
-      expect(revokeSpy).not.toHaveBeenCalled();
-
-      revokeSpy.mockRestore();
-      vi.useRealTimers();
-    });
   });
 
   describe("Error Handling", () => {
@@ -622,6 +632,7 @@ describe("SharedWorker Transport", () => {
       const transport = new SharedWorkerTransport({
         channelName: "test",
         onError,
+        workerUrl: MOCK_WORKER_URL,
       });
 
       vi.advanceTimersByTime(20);
@@ -648,6 +659,7 @@ describe("SharedWorker Transport", () => {
       const onError = vi.fn();
       const transport = new SharedWorkerTransport({
         channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
         onError,
       });
 
@@ -675,7 +687,10 @@ describe("SharedWorker Transport", () => {
   describe("Ping", () => {
     it("should send ping and receive pong", async () => {
       vi.useFakeTimers();
-      const transport = new SharedWorkerTransport({ channelName: "test" });
+      const transport = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       vi.advanceTimersByTime(20);
 
@@ -688,7 +703,10 @@ describe("SharedWorker Transport", () => {
     });
 
     it("should not send ping when not connected", () => {
-      const transport = new SharedWorkerTransport({ channelName: "test" });
+      const transport = new SharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       // Try to ping before registration
       expect(() => transport.ping()).not.toThrow();
@@ -699,7 +717,10 @@ describe("SharedWorker Transport", () => {
 
   describe("Factory Function", () => {
     it("should create transport via factory", () => {
-      const transport = createSharedWorkerTransport({ channelName: "test" });
+      const transport = createSharedWorkerTransport({
+        channelName: "test",
+        workerUrl: MOCK_WORKER_URL,
+      });
 
       expect(transport).toBeInstanceOf(SharedWorkerTransport);
       expect(transport.name).toBe("SharedWorker");

@@ -63,7 +63,7 @@ export default [
     },
   },
   {
-    files: ['**/*-worker.ts'],
+    files: ['**/*-broker.ts'],
     languageOptions: {
       globals: {
         self: 'readonly',

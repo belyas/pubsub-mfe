@@ -40,83 +40,14 @@ export interface SharedWorkerTransportConfig extends TransportConfig {
   onFallback?: (reason: string) => void;
 }
 
-const SHARED_WORKER_BROKER_CODE = `
-const clients = new Map();
-const channels = new Map();
-
-self.onconnect = function(event) {
-  const port = event.ports[0];
-  let clientId = null;
-  let channelName = null;
-
-  port.onmessage = function(e) {
-    const message = e.data;
-    switch (message.type) {
-      case 'register': {
-        clientId = message.clientId || crypto.randomUUID();
-        channelName = message.channelName || 'default';
-        clients.set(clientId, port);
-        if (!channels.has(channelName)) {
-          channels.set(channelName, new Set());
-        }
-        channels.get(channelName).add(clientId);
-        port.postMessage({ type: 'registered', clientId: clientId, timestamp: Date.now() });
-        break;
-      }
-      case 'publish': {
-        if (!clientId || !channelName) {
-          port.postMessage({ type: 'error', error: 'Not registered' });
-          return;
-        }
-        const channelClients = channels.get(channelName);
-        if (channelClients) {
-          for (const targetClientId of channelClients) {
-            if (targetClientId !== clientId) {
-              const targetPort = clients.get(targetClientId);
-              if (targetPort) {
-                try {
-                  targetPort.postMessage({ type: 'deliver', payload: message.payload, timestamp: Date.now() });
-                } catch (err) {
-                  clients.delete(targetClientId);
-                  channelClients.delete(targetClientId);
-                }
-              }
-            }
-          }
-        }
-        break;
-      }
-      case 'disconnect': {
-        cleanup();
-        break;
-      }
-      case 'ping': {
-        port.postMessage({ type: 'pong', timestamp: Date.now() });
-        break;
-      }
-    }
-  };
-
-  function cleanup() {
-    if (clientId) {
-      clients.delete(clientId);
-      if (channelName && channels.has(channelName)) {
-        channels.get(channelName).delete(clientId);
-        if (channels.get(channelName).size === 0) {
-          channels.delete(channelName);
-        }
-      }
-    }
-  }
-
-  port.start();
-};
-`;
-
 /**
- * SharedWorker transport implementation using inline Blob URL worker.
+ * SharedWorker transport implementation using external worker file.
  * Implements broker pattern where the worker relays messages between clients.
  * Supports reconnection with exponential backoff and fallback to other transports.
+ *
+ * @remarks
+ * Requires a compiled worker file to be accessible. Point workerUrl to:
+ * `dist/workers/cross-tab-shared-worker-broker.js`
  */
 export class SharedWorkerTransport extends BaseTransport {
   readonly name = "SharedWorker";
@@ -128,7 +59,7 @@ export class SharedWorkerTransport extends BaseTransport {
     workerUrl?: string;
     onFallback?: (reason: string) => void;
   };
-  private workerUrl: string | null = null;
+  private workerUrl: string | null;
   private isRegistered = false;
   private reconnectCount = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -145,6 +76,8 @@ export class SharedWorkerTransport extends BaseTransport {
       workerUrl: config.workerUrl,
       onFallback: config.onFallback,
     };
+
+    this.workerUrl = config.workerUrl ?? null;
 
     if (this.isAvailable()) {
       this.initialize();
@@ -170,12 +103,10 @@ export class SharedWorkerTransport extends BaseTransport {
 
   private initialize(): void {
     try {
-      if (this.config.workerUrl) {
-        this.workerUrl = this.config.workerUrl;
-      } else {
-        // Create inline worker using Blob URL
-        const blob = new Blob([SHARED_WORKER_BROKER_CODE], { type: "application/javascript" });
-        this.workerUrl = URL.createObjectURL(blob);
+      if (!this.workerUrl) {
+        throw new Error(
+          "workerUrl is required for SharedWorker transport. Point it to the compiled worker file: dist/workers/cross-tab-shared-worker-broker.js"
+        );
       }
 
       this.worker = new SharedWorker(this.workerUrl, {
@@ -402,10 +333,6 @@ export class SharedWorkerTransport extends BaseTransport {
       }
       this.port.close();
       this.port = null;
-    }
-
-    if (this.workerUrl && !this.config.workerUrl) {
-      URL.revokeObjectURL(this.workerUrl);
     }
 
     this.worker = null;
