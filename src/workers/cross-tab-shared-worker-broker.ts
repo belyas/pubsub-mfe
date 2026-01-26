@@ -12,19 +12,17 @@ self.onconnect = function (event: any) {
 
     switch (message.type) {
       case "register": {
-        clientId = message.clientId || crypto.randomUUID();
+        clientId = message.clientId || crypto.randomUUID?.() || Date.now().toString(36);
         channelName = message.channelName || "default";
 
         // Store port reference
         clients.set(clientId, port);
 
-        // Add to channel
         if (!channels.has(channelName)) {
           channels.set(channelName, new Set());
         }
-        channels.get(channelName).add(clientId);
 
-        // Send registration confirmation
+        channels.get(channelName).add(clientId);
         port.postMessage({
           type: "registered",
           clientId: clientId,
@@ -49,6 +47,7 @@ self.onconnect = function (event: any) {
         }
 
         const channelClients = channels.get(channelName);
+
         if (channelClients) {
           let deliveredCount = 0;
 
@@ -57,6 +56,7 @@ self.onconnect = function (event: any) {
             if (targetClientId === clientId) continue;
 
             const targetPort = clients.get(targetClientId);
+
             if (targetPort) {
               try {
                 targetPort.postMessage({
@@ -99,12 +99,15 @@ self.onconnect = function (event: any) {
   function cleanup() {
     if (clientId) {
       clients.delete(clientId);
+
       if (channelName && channels.has(channelName)) {
         channels.get(channelName).delete(clientId);
+
         if (channels.get(channelName).size === 0) {
           channels.delete(channelName);
         }
       }
+
       console.log(
         "[SharedWorker Broker] Client disconnected:",
         clientId,
