@@ -2,7 +2,7 @@ import { RetentionRingBuffer } from "./retention-buffer";
 import {
   clearSchemas,
   hasSchema,
-  registerSchema,
+  registerSchema as registerSchemaInternal,
   validateAgainstVersion,
 } from "./schema-validator";
 import {
@@ -270,7 +270,7 @@ export class PubSubBusImpl implements PubSubBus {
 
   registerSchema(schemaVersion: SchemaVersion, schema: JsonSchema) {
     this.assertNotDisposed("registerSchema");
-    registerSchema(schemaVersion, schema);
+    registerSchemaInternal(schemaVersion, schema);
     this.debug("Schema registered", { schemaVersion });
   }
 
