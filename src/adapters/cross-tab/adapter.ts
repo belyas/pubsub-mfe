@@ -298,6 +298,17 @@ export class CrossTabAdapter {
   }
 
   /**
+   * Reconnect the adapter to the bus.
+   *
+   * Useful if the bus was temporarily unavailable.
+   */
+  reconnect() {
+    if (this.bus && !this.unsubscribeOnPublish && !this.unsubscribeTransport) {
+      this.attach(this.bus);
+    }
+  }
+
+  /**
    * Handle a message published locally in this tab.
    *
    * Wraps it in a CrossTabEnvelope and broadcasts to other tabs.
