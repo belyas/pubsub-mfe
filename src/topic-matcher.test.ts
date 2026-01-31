@@ -223,6 +223,12 @@ describe("topic-matcher", () => {
         expect(matchTopic("cart.item.remove", matcher)).toBe(true);
         expect(matchTopic("cart.item.update", matcher)).toBe(true);
       });
+
+      it("should not match empty segments in between", () => {
+        const matcher = compileMatcher("cart.+.update");
+
+        expect(matchTopic("cart..update", matcher)).toBe(false);
+      });
     });
 
     describe("multi-level wildcard (#)", () => {

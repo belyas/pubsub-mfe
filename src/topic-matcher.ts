@@ -94,6 +94,12 @@ export function matchTopic(topic: Topic, matcher: CompiledMatcher): boolean {
 
   // Trie-based segment matching for wildcard patterns
   const topicSegments = splitTopic(topic);
+
+  if (topicSegments.some((seg) => seg === "")) {
+    // Topics with empty segments cannot match wildcard patterns
+    return false;
+  }
+
   const patternSegments = matcher.segments;
 
   return matchSegments(topicSegments, 0, patternSegments, 0);
