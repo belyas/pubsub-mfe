@@ -19,6 +19,7 @@ class MockMessagePort {
     if (this._closed) {
       throw new Error("Port is closed");
     }
+
     if (this.pairedPort && !this.pairedPort._closed) {
       // Use setTimeout to simulate async message delivery
       setTimeout(() => {
@@ -120,11 +121,8 @@ describe("IframeHost <-> IframeClient Integration", () => {
    */
   function setupClientConnection(): void {
     // Inject port into client
-
     (client as any).port = clientPort;
-
     (client as any).connected = true;
-
     // Wire up client port to handle messages
     clientPort.onmessage = (event: MessageEvent) => {
       (client as any).handlePortMessage(event);

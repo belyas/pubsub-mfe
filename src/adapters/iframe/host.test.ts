@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createPubSub } from "../../bus";
-import { IframeHost, PROTOCOL_VERSION } from "./host";
+import { createIframeHost, IframeHost, PROTOCOL_VERSION } from "./host";
 import type { IframeHostConfig, IframeAckEnvelope, IframeMessageEnvelope } from "./types";
 
 class MockIframe {
@@ -54,7 +54,7 @@ describe("IframeHost", () => {
 
   describe("Constructor", () => {
     it("should create instance with required config", () => {
-      host = new IframeHost(bus, {
+      host = new IframeHost({
         trustedOrigins: [trustedOrigin],
       });
 
@@ -62,10 +62,10 @@ describe("IframeHost", () => {
     });
 
     it("should apply default config values", () => {
-      host = new IframeHost(bus, {
+      host = new IframeHost({
         trustedOrigins: [trustedOrigin],
       });
-      host.attach();
+      host.attach(bus);
 
       const stats = host.getStats();
       expect(stats.totalIframes).toBe(0);
@@ -77,9 +77,7 @@ describe("IframeHost", () => {
       const config: IframeHostConfig = {
         trustedOrigins: [trustedOrigin],
       };
-      host = new IframeHost(bus, config);
-
-      host.attach();
+      host = createIframeHost(bus, config);
 
       const stats = host.getStats();
       expect(stats.totalIframes).toBe(0);
@@ -90,22 +88,21 @@ describe("IframeHost", () => {
         trustedOrigins: [trustedOrigin],
         debug: true,
       };
-      host = new IframeHost(bus, config);
+      host = new IframeHost(config);
       const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-      host.attach();
-      host.attach();
+      host.attach(bus);
+      host.attach(bus);
 
       expect(consoleSpy).toHaveBeenCalledWith("[IframeHost]", "Already attached");
       consoleSpy.mockRestore();
     });
 
     it("should detach and cleanup all iframes", () => {
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
       });
 
-      host.attach();
       host.detach();
 
       const stats = host.getStats();
@@ -115,7 +112,7 @@ describe("IframeHost", () => {
 
   describe("RegisterIframe", () => {
     it("should reject registration before attach", async () => {
-      host = new IframeHost(bus, {
+      host = new IframeHost({
         trustedOrigins: [trustedOrigin],
       });
 
@@ -125,10 +122,9 @@ describe("IframeHost", () => {
     });
 
     it("should reject untrusted origin", async () => {
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
       });
-      host.attach();
 
       await expect(host.registerIframe(iframe as any, "https://evil.com")).rejects.toThrow(
         "Untrusted origin: https://evil.com"
@@ -136,11 +132,10 @@ describe("IframeHost", () => {
     });
 
     it("should send SYN message on registration", async () => {
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
         handshakeTimeout: 100,
       });
-      host.attach();
 
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
 
@@ -158,13 +153,12 @@ describe("IframeHost", () => {
 
     it("should handle handshake timeout", async () => {
       const onHandshakeFailed = vi.fn();
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
         handshakeTimeout: 50,
         maxRetries: 0,
         onHandshakeFailed,
       });
-      host.attach();
 
       await expect(host.registerIframe(iframe as any, trustedOrigin)).rejects.toThrow(
         "Handshake timeout"
@@ -174,12 +168,11 @@ describe("IframeHost", () => {
     });
 
     it("should retry handshake on timeout", async () => {
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
         handshakeTimeout: 50,
         maxRetries: 2,
       });
-      host.attach();
 
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
 
@@ -191,12 +184,10 @@ describe("IframeHost", () => {
 
     it("should complete handshake on ACK", async () => {
       const onHandshakeComplete = vi.fn();
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
         onHandshakeComplete,
       });
-      host.attach();
-
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
 
       // Simulate ACK response
@@ -222,14 +213,11 @@ describe("IframeHost", () => {
     });
 
     it("should reject ACK from untrusted origin", async () => {
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
         handshakeTimeout: 100,
       });
-      host.attach();
-
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
-
       // Simulate ACK from wrong origin
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -237,6 +225,7 @@ describe("IframeHost", () => {
         clientId: "client-123",
         capabilities: [],
       };
+
       window.dispatchEvent(
         new MessageEvent("message", {
           data: ack,
@@ -250,14 +239,11 @@ describe("IframeHost", () => {
 
     it("should not register same iframe twice", async () => {
       const onHandshakeComplete = vi.fn();
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
         onHandshakeComplete,
       });
-      host.attach();
-
       // First registration
-
       const registerPromise1 = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -308,14 +294,10 @@ describe("IframeHost", () => {
         port2 = {};
       };
 
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
       });
-
-      host.attach();
-
       // Register and complete handshake
-
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -413,12 +395,9 @@ describe("IframeHost", () => {
         port2 = {};
       };
 
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
       });
-
-      host.attach();
-
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -426,12 +405,14 @@ describe("IframeHost", () => {
         clientId: "client-123",
         capabilities: [],
       };
+
       window.dispatchEvent(
         new MessageEvent("message", {
           data: ack,
           origin: trustedOrigin,
         })
       );
+
       await registerPromise;
 
       (globalThis as any).MessageChannel = originalMessageChannel;
@@ -480,28 +461,26 @@ describe("IframeHost", () => {
 
   describe("Auto-reconnect", () => {
     it("should setup load listener when autoReconnect enabled", async () => {
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
         autoReconnect: true,
         handshakeTimeout: 100,
       });
-
-      host.attach();
-
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
-
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
         version: PROTOCOL_VERSION,
         clientId: "client-123",
         capabilities: [],
       };
+
       window.dispatchEvent(
         new MessageEvent("message", {
           data: ack,
           origin: trustedOrigin,
         })
       );
+
       await registerPromise;
 
       // Verify load listener registered
@@ -509,27 +488,26 @@ describe("IframeHost", () => {
     });
 
     it("should not setup load listener when autoReconnect disabled", async () => {
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
         autoReconnect: false,
         handshakeTimeout: 100,
       });
-      host.attach();
-
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
-
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
         version: PROTOCOL_VERSION,
         clientId: "client-123",
         capabilities: [],
       };
+
       window.dispatchEvent(
         new MessageEvent("message", {
           data: ack,
           origin: trustedOrigin,
         })
       );
+
       await registerPromise;
 
       expect(iframe.listeners.get("load")?.size || 0).toBe(0);
@@ -554,12 +532,9 @@ describe("IframeHost", () => {
         }
       };
 
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
       });
-
-      host.attach();
-
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -567,12 +542,14 @@ describe("IframeHost", () => {
         clientId: "client-123",
         capabilities: [],
       };
+
       window.dispatchEvent(
         new MessageEvent("message", {
           data: ack,
           origin: trustedOrigin,
         })
       );
+
       await registerPromise;
 
       host.unregisterIframe(iframe as any);
@@ -585,11 +562,9 @@ describe("IframeHost", () => {
     });
 
     it("should warn if iframe not registered", () => {
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
       });
-      host.attach();
-
       const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       host.unregisterIframe(iframe as any);
@@ -613,11 +588,9 @@ describe("IframeHost", () => {
         port2 = {};
       };
 
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
       });
-      host.attach();
-
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -625,12 +598,14 @@ describe("IframeHost", () => {
         clientId: "client-123",
         capabilities: [],
       };
+
       window.dispatchEvent(
         new MessageEvent("message", {
           data: ack,
           origin: trustedOrigin,
         })
       );
+
       await registerPromise;
 
       bus.publish("test.topic", { data: "hello" });
@@ -670,12 +645,9 @@ describe("IframeHost", () => {
         port2 = {};
       };
 
-      host = new IframeHost(bus, {
+      host = createIframeHost(bus, {
         trustedOrigins: [trustedOrigin],
       });
-
-      host.attach();
-
       const registerPromise = host.registerIframe(iframe as any, trustedOrigin);
       const ack: IframeAckEnvelope = {
         type: "pubsub:ACK",
@@ -683,12 +655,14 @@ describe("IframeHost", () => {
         clientId: "client-123",
         capabilities: [],
       };
+
       window.dispatchEvent(
         new MessageEvent("message", {
           data: ack,
           origin: trustedOrigin,
         })
       );
+
       await registerPromise;
 
       (globalThis as any).MessageChannel = originalMessageChannel;
@@ -747,14 +721,11 @@ describe("IframeHost", () => {
     it("should enforce schema validation when enabled", async () => {
       const strictBus = createPubSub({ validationMode: "strict" });
       const onValidationError = vi.fn();
-      const validationHost = new IframeHost(strictBus, {
+      const validationHost = createIframeHost(strictBus, {
         trustedOrigins: [trustedOrigin],
         enforceSchemaValidation: true,
         onValidationError,
       });
-
-      validationHost.attach();
-
       const validationMockPort = {
         postMessage: vi.fn(),
         close: vi.fn(),
@@ -776,12 +747,14 @@ describe("IframeHost", () => {
         clientId: "client-456",
         capabilities: [],
       };
+
       window.dispatchEvent(
         new MessageEvent("message", {
           data: ack,
           origin: trustedOrigin,
         })
       );
+
       await registerPromise;
 
       strictBus.registerSchema("strict.event@1", {

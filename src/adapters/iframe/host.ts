@@ -47,7 +47,7 @@ interface ResolvedIframeHostConfig extends Required<IframeHostConfig> {
  * ```
  */
 export class IframeHost {
-  private readonly bus: PubSubBus;
+  private bus: PubSubBus | null = null;
   private readonly config: ResolvedIframeHostConfig;
   private readonly registrations = new Map<HTMLIFrameElement, IframeRegistration>();
   private readonly observer: MutationObserver | null;
@@ -61,8 +61,7 @@ export class IframeHost {
   private messagesDropped = 0;
   private validationErrors = 0;
 
-  constructor(bus: PubSubBus, config: IframeHostConfig) {
-    this.bus = bus;
+  constructor(config: IframeHostConfig) {
     this.config = this.resolveConfig(config);
 
     // Setup MutationObserver for passive disconnect detection
@@ -80,12 +79,13 @@ export class IframeHost {
   /**
    * Attach to bus and start monitoring for removed iframes.
    */
-  attach(): void {
-    if (this.attached) {
+  attach(bus: PubSubBus): void {
+    if (this.attached || this.bus) {
       this.log("warn", "Already attached");
       return;
     }
 
+    this.bus = bus;
     this.unsubscribe = this.bus.subscribe("#", (message) => {
       this.handleBusMessage(message);
     });
@@ -386,6 +386,10 @@ export class IframeHost {
     registration: IframeRegistration,
     envelope: IframeMessageEnvelope
   ): void {
+    if (!this.bus) {
+      return;
+    }
+
     this.messagesReceived++;
 
     const { topic, payload, schemaVersion, source } = envelope.payload;
@@ -562,8 +566,8 @@ export class IframeHost {
  * ```
  */
 export function createIframeHost(bus: PubSubBus, config: IframeHostConfig): IframeHost {
-  const host = new IframeHost(bus, config);
+  const host = new IframeHost(config);
 
-  host.attach();
+  host.attach(bus);
   return host;
 }
