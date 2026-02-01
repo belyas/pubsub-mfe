@@ -138,13 +138,13 @@ export class CrossTabAdapter {
       maxBytes: maxMessageSize,
     });
 
-    const batchIntervalMs = config.batchIntervalMs ?? 10;
+    const batchIntervalMs = config.batchIntervalMs ?? 0;
     const maxBatchSize = config.maxBatchSize ?? 50;
 
     this.batcher =
       batchIntervalMs > 0
         ? new MessageBatcher({
-            intervalMs: batchIntervalMs,
+            intervalMs: config.batchIntervalMs ?? 10,
             maxBatchSize,
             onFlush: (envelopes) => {
               // Send the batch - wrap in try/catch to handle closed transport
@@ -171,7 +171,9 @@ export class CrossTabAdapter {
         channelName,
         enableLeadership,
         emitSystemEvents,
-        batching: this.batcher ? { intervalMs: batchIntervalMs, maxBatchSize } : "disabled",
+        batching: this.batcher
+          ? { intervalMs: config.batchIntervalMs ?? 0, maxBatchSize }
+          : "disabled",
       });
     }
   }
