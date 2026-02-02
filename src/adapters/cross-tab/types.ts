@@ -147,17 +147,6 @@ export interface CrossTabAdapterConfig {
   emitSystemEvents?: boolean;
 
   /**
-   * Transport mode selection.
-   * - 'auto': Prefer BroadcastChannel, fallback to storage
-   * - 'broadcast': Use BroadcastChannel only
-   * - 'storage': Use StorageEvent only
-   * - 'worker': Use SharedWorker only
-   *
-   * Default: 'auto'
-   */
-  transportMode?: "auto" | "broadcast" | "storage" | "worker";
-
-  /**
    * Maximum message size in bytes.
    * Messages exceeding this size are rejected.
    * Default: 262144 (256KB)
@@ -202,14 +191,6 @@ export interface CrossTabAdapterConfig {
   dedupeCacheSize?: number;
 
   /**
-   * Enable SharedWorker broker mode.
-   * When true, attempts to use SharedWorker for coordination.
-   * Falls back to peer-to-peer if unavailable.
-   * Default: auto-detect SharedWorker support
-   */
-  enableBroker?: boolean;
-
-  /**
    * Batch outgoing messages for this duration (milliseconds).
    * Reduces overhead for high-frequency publishing.
    * Default: 10
@@ -222,13 +203,6 @@ export interface CrossTabAdapterConfig {
    * Default: 50
    */
   maxBatchSize?: number;
-
-  /**
-   * Minimum payload size to trigger compression (bytes).
-   * Payloads smaller than this are sent uncompressed.
-   * Default: 1024 (1KB)
-   */
-  compressionThreshold?: number;
 
   /**
    * Error handler for adapter errors.
