@@ -3,8 +3,12 @@ import resolve from "@rollup/plugin-node-resolve";
 import { dts } from "rollup-plugin-dts";
 import { defineConfig } from "rollup";
 import type { RollupOptions } from "rollup";
+import terser from '@rollup/plugin-terser';
+import filesize from 'rollup-plugin-filesize';
+import { visualizer } from "rollup-plugin-visualizer";
 
 const isWatchMode = process.argv.includes("--watch");
+const extraInfoPlugins = isWatchMode ? [] : [filesize(), visualizer()];
 
 const typescriptPlugin = typescript({
   tsconfig: "./tsconfig.json",
@@ -23,13 +27,23 @@ const mainBundle: RollupOptions = {
     },
     exports: "named",
   },
-  plugins: [resolve(), typescriptPlugin],
+  plugins: [resolve(), typescriptPlugin, terser(), ...extraInfoPlugins],
   treeshake: {
     moduleSideEffects: false,
     propertyReadSideEffects: false,
     unknownGlobalSideEffects: false,
   },
 };
+
+// const mainMinBundle: RollupOptions = {
+//   input: "src/entry.single.ts",
+//   output: {
+//     file: "dist/index.min.js",
+//     format: "esm",
+//     sourcemap: true,
+//   },
+//   plugins: [resolve(), typescriptPlugin, terser()],
+// };
 
 const brokerWorkerBundle: RollupOptions = {
   input: "src/workers/cross-tab-shared-worker-broker.ts",
@@ -41,7 +55,7 @@ const brokerWorkerBundle: RollupOptions = {
       constBindings: true,
     },
   },
-  plugins: [resolve(), typescriptPlugin],
+  plugins: [resolve(), typescriptPlugin, terser(), ...extraInfoPlugins],
   treeshake: {
     moduleSideEffects: false,
     propertyReadSideEffects: false,
@@ -60,7 +74,7 @@ const adapterBundle: RollupOptions = {
     },
     exports: "named",
   },
-  plugins: [resolve(), typescriptPlugin],
+  plugins: [resolve(), typescriptPlugin, terser(), ...extraInfoPlugins],
   treeshake: {
     moduleSideEffects: false,
     propertyReadSideEffects: false,
@@ -79,7 +93,7 @@ const broadcastChannelTransportBundle: RollupOptions = {
     },
     exports: "named",
   },
-  plugins: [resolve(), typescriptPlugin],
+  plugins: [resolve(), typescriptPlugin, terser(), ...extraInfoPlugins],
   treeshake: {
     moduleSideEffects: false,
     propertyReadSideEffects: false,
@@ -98,7 +112,7 @@ const sharedWorkerTransportBundle: RollupOptions = {
     },
     exports: "named",
   },
-  plugins: [resolve(), typescriptPlugin],
+  plugins: [resolve(), typescriptPlugin, terser(), ...extraInfoPlugins],
   treeshake: {
     moduleSideEffects: false,
     propertyReadSideEffects: false,
@@ -117,7 +131,7 @@ const storageTransportBundle: RollupOptions = {
     },
     exports: "named",
   },
-  plugins: [resolve(), typescriptPlugin],
+  plugins: [resolve(), typescriptPlugin, terser(), ...extraInfoPlugins],
   treeshake: {
     moduleSideEffects: false,
     propertyReadSideEffects: false,
@@ -136,7 +150,7 @@ const autoTransportBundle: RollupOptions = {
     },
     exports: "named",
   },
-  plugins: [resolve(), typescriptPlugin],
+  plugins: [resolve(), typescriptPlugin, terser(), ...extraInfoPlugins],
   treeshake: {
     moduleSideEffects: false,
     propertyReadSideEffects: false,
@@ -155,7 +169,7 @@ const iframeAdapterBundle: RollupOptions = {
     },
     exports: "named",
   },
-  plugins: [resolve(), typescriptPlugin],
+  plugins: [resolve(), typescriptPlugin, terser(), ...extraInfoPlugins],
   treeshake: {
     moduleSideEffects: false,
     propertyReadSideEffects: false,
@@ -174,7 +188,7 @@ const historyAdapterBundle: RollupOptions = {
     },
     exports: "named",
   },
-  plugins: [resolve(), typescriptPlugin],
+  plugins: [resolve(), typescriptPlugin, terser(), ...extraInfoPlugins],
   treeshake: {
     moduleSideEffects: false,
     propertyReadSideEffects: false,
@@ -270,6 +284,7 @@ export default defineConfig(
       ]
     : [
         mainBundle,
+        // mainMinBundle,
         brokerWorkerBundle,
         adapterBundle,
         broadcastChannelTransportBundle,
