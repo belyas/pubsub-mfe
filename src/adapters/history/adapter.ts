@@ -28,9 +28,6 @@ const DEFAULT_GC_INTERVAL_MS = 60000; // 1 minute
  *
  * Usage:
  * ```ts
- * import { createPubSub } from 'pubsub-mfe';
- * import { createHistoryAdapter } from 'pubsub-mfe/adapters/history';
- *
  * const bus = createPubSub({ app: 'my-app' });
  * const historyAdapter = await createHistoryAdapter({
  *   maxMessages: 500,

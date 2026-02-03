@@ -13,9 +13,6 @@
  *
  * @example
  * ```ts
- * import { createPubSub } from 'pubsub-mfe';
- * import { createHistoryAdapter } from 'pubsub-mfe/adapters/history';
- *
  * const bus = createPubSub({ app: 'my-app' });
  * const historyAdapter = createHistoryAdapter({
  *   namespace: 'my-app',
