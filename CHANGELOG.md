@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.1](https://github.com/belyas/pubsub-mfe/compare/v0.7.0...v0.7.1) (2026-02-03)
+
+
+### Documentation
+
+* **coc:** add code of conduct document ([9226931](https://github.com/belyas/pubsub-mfe/commit/922693144e852a356c267a944436ffb087564f2a))
+* **contributing:** add contributing document ([8d441e3](https://github.com/belyas/pubsub-mfe/commit/8d441e3fa01ec14489f425ea489b89cdf3ef7de9))
+* **history-adapter:** remove unused jsdoc content ([2054158](https://github.com/belyas/pubsub-mfe/commit/2054158639fbd785bacd5af2e5ce9a3017ead2a7))
+* **issue:** add issue templates ([f3d0e72](https://github.com/belyas/pubsub-mfe/commit/f3d0e72e499d1f33296d02bbf0b021952ca08936))
+* **pr:** add pull request template ([8ae2774](https://github.com/belyas/pubsub-mfe/commit/8ae2774fcd8db92bfcb2579f84030002ce0791b7))
+* **README:** update readme file to include documentation website ([aba2fec](https://github.com/belyas/pubsub-mfe/commit/aba2fec58262c30029970a2609add90de2f798dc))
+
 ## [0.7.0](https://github.com/belyas/pubsub-mfe/compare/v0.6.0...v0.7.0) (2026-01-26)
 
 
