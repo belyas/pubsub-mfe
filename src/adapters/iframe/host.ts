@@ -86,7 +86,8 @@ export class IframeHost {
     }
 
     this.bus = bus;
-    this.unsubscribe = this.bus.subscribe("#", (message) => {
+    const hooks = this.bus.getHooks();
+    this.unsubscribe = hooks.onPublish((message) => {
       this.handleBusMessage(message);
     });
 
@@ -421,13 +422,22 @@ export class IframeHost {
   }
 
   /**
-   * Broadcast to all connected iframes
+   * Broadcast to all connected iframes, skipping the originating iframe.
    */
   private handleBusMessage(message: Message): void {
+    const source = message.meta?.source;
+
     for (const registration of this.registrations.values()) {
-      if (registration.state === "connected") {
-        this.broadcastToIframe(registration, message);
+      if (registration.state !== "connected") {
+        continue;
       }
+
+      // Skip the iframe that originated this message to prevent echo loops
+      if (source && source === `iframe:${registration.clientId}`) {
+        continue;
+      }
+
+      this.broadcastToIframe(registration, message);
     }
   }
 

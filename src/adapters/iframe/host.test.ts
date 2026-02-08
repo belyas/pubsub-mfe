@@ -370,6 +370,51 @@ describe("IframeHost", () => {
       const stats = host.getStats();
       expect(stats.messagesSent).toBe(1);
     });
+
+    it("should not echo messages back to the originating iframe", async () => {
+      // Simulate an incoming message from the iframe (clientId: "client-123")
+      const incomingMessage: IframeMessageEnvelope = {
+        type: "pubsub:MESSAGE",
+        version: PROTOCOL_VERSION,
+        payload: {
+          messageId: "msg-from-iframe",
+          topic: "iframe.originated",
+          payload: { from: "child" },
+          timestamp: Date.now(),
+        },
+      };
+
+      mockPort.postMessage.mockClear();
+      mockPort.onmessage!(new MessageEvent("message", { data: incomingMessage }));
+
+      // Wait for the message to go through bus.publish → onPublish hook → handleBusMessage
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // The message should NOT be broadcast back to the same iframe
+      const sentMessages = mockPort.postMessage.mock.calls.filter((call: unknown[]) => {
+        const env = call[0] as IframeMessageEnvelope;
+        return env?.type === "pubsub:MESSAGE" && env?.payload?.topic === "iframe.originated";
+      });
+
+      expect(sentMessages).toHaveLength(0);
+    });
+
+    it("should not consume maxHandlersPerTopic slots", () => {
+      const limitedBus = createPubSub({ maxHandlersPerTopic: 1, onMaxHandlersExceeded: "throw" });
+      const limitedHost = new IframeHost({ trustedOrigins: [trustedOrigin] });
+
+      limitedHost.attach(limitedBus);
+
+      // With the old bus.subscribe("#") approach, this would throw since
+      // the host already consumed the only handler slot.
+      // With hooks, the slot is free for user handlers.
+      expect(() => {
+        limitedBus.subscribe("#", () => {});
+      }).not.toThrow();
+
+      limitedHost.detach();
+      limitedBus.dispose();
+    });
   });
 
   describe("Disconnect detection", () => {
