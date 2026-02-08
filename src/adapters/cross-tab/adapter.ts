@@ -42,6 +42,7 @@ export class CrossTabAdapter {
   private readonly batcher: MessageBatcher | null;
   private readonly config: Required<CrossTabAdapterConfig>;
   private bus: PubSubBus | null = null;
+  private lastAttachedBus: PubSubBus | null = null;
   private unsubscribeOnPublish?: () => void;
   private unsubscribeTransport?: () => void;
   private stats = {
@@ -198,6 +199,7 @@ export class CrossTabAdapter {
     }
 
     this.bus = bus;
+    this.lastAttachedBus = bus;
     const hooks = bus.getHooks();
 
     // Hook 1: Intercept locally published messages
@@ -300,11 +302,20 @@ export class CrossTabAdapter {
    * Reconnect the adapter to the bus.
    *
    * Useful if the bus was temporarily unavailable.
+   * Re-attaches to the last bus that was attached via `attach()`.
+   *
+   * @throws Error if no bus was previously attached
    */
   reconnect() {
-    if (this.bus && !this.unsubscribeOnPublish && !this.unsubscribeTransport) {
-      this.attach(this.bus);
+    if (this.bus) {
+      return;
     }
+
+    if (!this.lastAttachedBus) {
+      throw new Error("Cannot reconnect: no bus was previously attached");
+    }
+
+    this.attach(this.lastAttachedBus);
   }
 
   /**
