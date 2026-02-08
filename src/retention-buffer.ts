@@ -38,12 +38,13 @@ export class RetentionRingBuffer {
   }
 
   /**
-   * Get all messages, optionally filtering by TTL.
-   * @param now - Current timestamp for TTL calculation
+   * Get all messages, optionally filtering by TTL and/or a time window.
+   * @param now - Current timestamp for TTL calculation.
+   * @param sinceTimestamp - If provided, only return messages with `ts >= sinceTimestamp`.
    *
    * @returns messages in insertion order (oldest first).
    */
-  getMessages(now: number): Message[] {
+  getMessages(now: number, sinceTimestamp?: number): Message[] {
     const result: Message[] = [];
     let idx = this.head;
 
@@ -51,7 +52,10 @@ export class RetentionRingBuffer {
       const msg = this.buffer[idx];
 
       if (msg !== null) {
-        if (this.ttlMs === undefined || now - msg.ts <= this.ttlMs) {
+        const withinTtl = this.ttlMs === undefined || now - msg.ts <= this.ttlMs;
+        const withinWindow = sinceTimestamp === undefined || msg.ts >= sinceTimestamp;
+
+        if (withinTtl && withinWindow) {
           result.push(msg);
         }
       }

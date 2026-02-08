@@ -1002,6 +1002,55 @@ describe("PubSubBus", () => {
         bus.publish("test", {}, { schemaVersion: "unknown@1" });
       }).not.toThrow();
     });
+
+    it("should isolate schemas between bus instances", () => {
+      const busA = createPubSub({ validationMode: "strict", app: "app-a" });
+      const busB = createPubSub({ validationMode: "strict", app: "app-b" });
+
+      busA.registerSchema("cart.item@1", {
+        type: "object",
+        properties: { sku: { type: "string" } },
+        required: ["sku"],
+      });
+
+      // busA can publish with its own schema
+      expect(() => {
+        busA.publish("cart.item.add", { sku: "ABC" }, { schemaVersion: "cart.item@1" });
+      }).not.toThrow();
+
+      // busB should NOT see busA's schema
+      expect(() => {
+        busB.publish("cart.item.add", { sku: "ABC" }, { schemaVersion: "cart.item@1" });
+      }).toThrow("not registered");
+
+      busA.dispose();
+      busB.dispose();
+    });
+
+    it("should not lose schemas of one bus when another is disposed", () => {
+      const busA = createPubSub({ validationMode: "strict", app: "app-a" });
+      const busB = createPubSub({ validationMode: "strict", app: "app-b" });
+
+      busA.registerSchema("item@1", {
+        type: "object",
+        properties: { id: { type: "number" } },
+        required: ["id"],
+      });
+      busB.registerSchema("item@1", {
+        type: "object",
+        properties: { id: { type: "number" } },
+        required: ["id"],
+      });
+
+      busB.dispose();
+
+      // busA's schema should still work after busB is disposed
+      expect(() => {
+        busA.publish("test", { id: 1 }, { schemaVersion: "item@1" });
+      }).not.toThrow();
+
+      busA.dispose();
+    });
   });
 
   describe("Message metadata", () => {
@@ -1241,6 +1290,62 @@ describe("PubSubBus", () => {
       for (let i = 1; i < history.length; i++) {
         expect(history[i].ts).toBeGreaterThanOrEqual(history[i - 1].ts);
       }
+
+      retentionBus.dispose();
+      vi.useRealTimers();
+    });
+
+    it("should not double-filter with TTL and history window", async () => {
+      vi.useFakeTimers();
+
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: {
+          maxMessages: 50,
+          ttlMs: 5 * 60 * 1000, // 5 minute TTL — same as DEFAULT_HISTORY_WINDOW_MS
+        },
+      });
+
+      // Publish a message "now"
+      retentionBus.publish("test.topic", { value: "recent" });
+
+      // Advance time by 2 minutes — well within both TTL and history window
+      vi.advanceTimersByTime(2 * 60 * 1000);
+
+      const history = await retentionBus.getHistory("test.topic");
+
+      // Message published 2 minutes ago should still be returned
+      // (within 5-min TTL AND within 5-min history window)
+      expect(history).toHaveLength(1);
+      expect(history[0].payload).toEqual({ value: "recent" });
+
+      retentionBus.dispose();
+      vi.useRealTimers();
+    });
+
+    it("should correctly expire messages beyond TTL in getHistory", async () => {
+      vi.useFakeTimers();
+
+      const retentionBus = createPubSub({
+        app: "retention-test",
+        retention: {
+          maxMessages: 50,
+          ttlMs: 60 * 1000, // 1 minute TTL
+        },
+      });
+
+      retentionBus.publish("test.topic", { value: "old" });
+
+      // Advance past TTL
+      vi.advanceTimersByTime(2 * 60 * 1000);
+
+      retentionBus.publish("test.topic", { value: "new" });
+
+      const history = await retentionBus.getHistory("test.topic");
+
+      // Only the message within TTL should be returned
+      expect(history).toHaveLength(1);
+      expect(history[0].payload).toEqual({ value: "new" });
 
       retentionBus.dispose();
       vi.useRealTimers();

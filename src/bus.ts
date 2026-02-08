@@ -284,7 +284,7 @@ export class PubSubBusImpl implements PubSubBus {
     }
 
     const now = getTimestamp();
-    let messages = this.retentionBuffer.getMessages(now - DEFAULT_HISTORY_WINDOW_MS);
+    let messages = this.retentionBuffer.getMessages(now, now - DEFAULT_HISTORY_WINDOW_MS);
     const matcher = compileMatcher(topic);
     messages = messages.filter((msg) => matchTopic(msg.topic, matcher));
 

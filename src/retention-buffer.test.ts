@@ -165,6 +165,79 @@ describe("RetentionRingBuffer", () => {
 
       expect(messages.map((m) => (m.payload as { n: number }).n)).toEqual([3, 4, 5]);
     });
+
+    it("should return only messages at or after sinceTimestamp", () => {
+      const buffer = new RetentionRingBuffer(10);
+
+      buffer.push(createMessage("old", 1000, { n: 1 }));
+      buffer.push(createMessage("mid", 3000, { n: 2 }));
+      buffer.push(createMessage("new", 5000, { n: 3 }));
+
+      const messages = buffer.getMessages(6000, 3000);
+
+      expect(messages).toHaveLength(2);
+      expect(messages[0].payload).toEqual({ n: 2 });
+      expect(messages[1].payload).toEqual({ n: 3 });
+    });
+
+    it("should apply both TTL and sinceTimestamp filters correctly", () => {
+      const buffer = new RetentionRingBuffer(10, 5000); // 5s TTL
+
+      buffer.push(createMessage("expired", 1000, { n: 1 })); // expired at now=10000
+      buffer.push(createMessage("old-valid", 6000, { n: 2 })); // within TTL, before window
+      buffer.push(createMessage("in-window", 8000, { n: 3 })); // within TTL, within window
+      buffer.push(createMessage("newest", 9500, { n: 4 })); // within TTL, within window
+
+      // now=10000, TTL=5s → keep msgs with ts >= 5000
+      // sinceTimestamp=7000 → keep msgs with ts >= 7000
+      const messages = buffer.getMessages(10000, 7000);
+
+      expect(messages).toHaveLength(2);
+      expect(messages[0].payload).toEqual({ n: 3 });
+      expect(messages[1].payload).toEqual({ n: 4 });
+    });
+
+    it("should not double-filter when TTL and window overlap", () => {
+      // This is the exact scenario that was bugged before the fix:
+      // TTL = 5 min, window = 5 min, both applied from "now"
+      const TTL = 5 * 60 * 1000; // 5 minutes
+      const WINDOW = 5 * 60 * 1000; // 5 minutes
+      const now = 1_000_000;
+      const buffer = new RetentionRingBuffer(10, TTL);
+
+      // Message 3 minutes ago — should be within both TTL and window
+      buffer.push(createMessage("recent", now - 3 * 60 * 1000, { n: 1 }));
+      // Message 4 minutes ago — should be within both TTL and window
+      buffer.push(createMessage("older", now - 4 * 60 * 1000, { n: 2 }));
+
+      // Correct usage: pass actual `now` for TTL, and `now - WINDOW` as sinceTimestamp
+      const messages = buffer.getMessages(now, now - WINDOW);
+
+      // Both messages should be returned (they are within 5 min TTL and 5 min window)
+      expect(messages).toHaveLength(2);
+    });
+
+    it("should return all non-expired messages when sinceTimestamp is omitted", () => {
+      const buffer = new RetentionRingBuffer(10, 100);
+
+      buffer.push(createMessage("expired", 1000, { n: 1 }));
+      buffer.push(createMessage("fresh", 9950, { n: 2 }));
+
+      const messages = buffer.getMessages(10000);
+
+      expect(messages).toHaveLength(1);
+      expect(messages[0].payload).toEqual({ n: 2 });
+    });
+
+    it("should return empty when sinceTimestamp is in the future", () => {
+      const buffer = new RetentionRingBuffer(10);
+
+      buffer.push(createMessage("test", 5000, { n: 1 }));
+
+      const messages = buffer.getMessages(6000, 999999);
+
+      expect(messages).toHaveLength(0);
+    });
   });
 
   describe("clear", () => {
