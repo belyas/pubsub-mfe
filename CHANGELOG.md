@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.2](https://github.com/belyas/pubsub-mfe/compare/v0.7.1...v0.7.2) (2026-02-08)
+
+
+### Bug Fixes
+
+* **bus:** fix off-by-one error allowing maxHandlersPerTopic+1 ([39cf1a7](https://github.com/belyas/pubsub-mfe/commit/39cf1a7ac674bf452c58be4f2e980483bf783753))
+* **iframe-host:** fix potential infinite message loops ([06dc9d4](https://github.com/belyas/pubsub-mfe/commit/06dc9d4bba0f113d9240f53ed6cd08bfe3e77439))
+* **retention-buffer:** getMessages double-filtering ([4d0c0ca](https://github.com/belyas/pubsub-mfe/commit/4d0c0ca58a4c79f5b89e4526a4bab64cc5ab1c8b))
+
 ### [0.7.1](https://github.com/belyas/pubsub-mfe/compare/v0.7.0...v0.7.1) (2026-02-03)
 
 
