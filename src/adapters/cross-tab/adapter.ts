@@ -3,7 +3,7 @@ import type { Transport, CrossTabEnvelope, CrossTabAdapterConfig, CrossTabStats 
 import { getOrCreateClientId } from "./client-id";
 import { DeduplicationCache } from "./deduplication";
 import { LeadershipDetector } from "./leadership";
-import { ENVELOPE_VERSION, validateAndSanitizeEnvelope } from "./envelope";
+import { ENVELOPE_VERSION, validateAndSanitizeEnvelope, createEnvelope } from "./envelope";
 import { RateLimiter, OriginValidator, MessageSizeValidator } from "./security";
 import { MessageBatcher } from "./batching";
 
@@ -316,15 +316,7 @@ export class CrossTabAdapter {
    */
   private handleLocalPublish(message: Message): void {
     try {
-      const envelope: CrossTabEnvelope = {
-        messageId: message.id,
-        clientId: this.clientId,
-        topic: message.topic,
-        payload: message.payload,
-        timestamp: message.ts,
-        version: 1,
-        origin: typeof window !== "undefined" ? window.location.origin : "unknown",
-      };
+      const envelope = createEnvelope(message, this.clientId);
 
       if (!this.messageSizeValidator.isValid(envelope)) {
         this.stats.messagesOversized++;
