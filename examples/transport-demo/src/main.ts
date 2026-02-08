@@ -110,9 +110,13 @@ async function connect() {
     logMessage("info", `Connecting with ${selectedType} transport...`);
     
     if (selectedType === "auto") {
+      const sharedWorkerUrl = new URL("../../../dist/workers/cross-tab-shared-worker-broker.js", import.meta.url).href;
+      console.log('[Demo] Worker URL:', sharedWorkerUrl);
+
       transportResult = createAutoTransport({
         channelName: "transport-demo",
         debug: true,
+        sharedWorkerUrl,
         onFallback: logFallback,
         onError: (error) => {
           logMessage("error", `Transport error: ${error.message}`);

@@ -21,9 +21,9 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
   },
-  resolve: {
-    alias: {
-      '@pubsub': resolve(__dirname, '../../src'),
-    },
-  },
+  // resolve: {
+  //   alias: {
+  //     '@pubsub': resolve(__dirname, '../../src'),
+  //   },
+  // },
 });

@@ -1,4 +1,4 @@
-import { createIframeClient } from '@pubsub/adapters/iframe/index';
+import { createIframeClient } from '@belyas/pubsub-mfe/adapters/iframe';
 
 const origin = window.location.origin;
 // Cart state

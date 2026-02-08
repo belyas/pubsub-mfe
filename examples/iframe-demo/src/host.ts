@@ -1,5 +1,5 @@
-import { createPubSub } from '@pubsub/index';
-import { createIframeHost } from '@pubsub/adapters/iframe/index';
+import { createPubSub } from '@belyas/pubsub-mfe';
+import { createIframeHost } from '@belyas/pubsub-mfe/adapters/iframe';
 
 const origin = window.location.origin;
 

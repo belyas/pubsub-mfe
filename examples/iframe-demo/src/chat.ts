@@ -1,4 +1,4 @@
-import { createIframeClient } from '@pubsub/adapters/iframe/index';
+import { createIframeClient } from '@belyas/pubsub-mfe/adapters/iframe';
 
 const origin = window.location.origin;
 // Messages state
@@ -35,7 +35,7 @@ async function init() {
       if (message.topic.startsWith('chat.notification')) {
         addNotification(JSON.stringify(message.payload));
       } else {
-        const source = message.meta?.source || 'unknown';
+        const source = message?.source || 'unknown';
         const text = typeof message.payload === 'string' 
           ? message.payload 
           : JSON.stringify(message.payload);

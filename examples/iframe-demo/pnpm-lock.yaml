@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@belyas/pubsub-mfe':
+        specifier: ^0.7.1
+        version: 0.7.1
     devDependencies:
       '@types/node':
         specifier: ^20.10.6
@@ -19,6 +23,10 @@ importers:
         version: 5.4.21(@types/node@20.19.30)
 
 packages:
+
+  '@belyas/pubsub-mfe@0.7.1':
+    resolution: {integrity: sha512-IkvOPVJw4v92XqUQqBYqFo2q+pfOye/E6ZARbG6t8sZFvpipMu0fin7lb9rjarrBK50zg11XtgejQp1DzushAQ==}
+    engines: {node: '>=22.20', pnpm: '>=10.22.0'}
 
   '@esbuild/aix-ppc64@0.21.5':
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -360,6 +368,8 @@ packages:
         optional: true
 
 snapshots:
+
+  '@belyas/pubsub-mfe@0.7.1': {}
 
   '@esbuild/aix-ppc64@0.21.5':
     optional: true
