@@ -122,7 +122,7 @@ export class PubSubBusImpl implements PubSubBus {
       this.subscriptions.set(pattern, patternSubscriptions);
     }
 
-    if (patternSubscriptions.size > this.config.maxHandlersPerTopic) {
+    if (patternSubscriptions.size >= this.config.maxHandlersPerTopic) {
       const error = new Error(
         `Maximum handlers (${this.config.maxHandlersPerTopic}) reached for pattern "${pattern}".`
       );

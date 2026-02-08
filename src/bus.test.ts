@@ -407,7 +407,6 @@ describe("PubSubBus", () => {
       const limitedBus = createPubSub({ maxHandlersPerTopic: 2 });
 
       limitedBus.subscribe("test", () => {});
-      limitedBus.subscribe("test", () => {});
 
       expect(() => {
         limitedBus.subscribe("test", () => {});
@@ -421,11 +420,30 @@ describe("PubSubBus", () => {
 
       limitedBus.subscribe("test", () => {});
       limitedBus.subscribe("test", () => {});
-      limitedBus.subscribe("test", () => {});
 
       expect(() => {
         limitedBus.subscribe("test", () => {});
       }).toThrow("Maximum handlers");
+
+      limitedBus.dispose();
+    });
+
+    it("should enforce exactly maxHandlersPerTopic handlers", () => {
+      const limitedBus = createPubSub({
+        maxHandlersPerTopic: 3,
+        onMaxHandlersExceeded: "throw",
+      });
+
+      limitedBus.subscribe("test", () => {});
+      limitedBus.subscribe("test", () => {});
+      limitedBus.subscribe("test", () => {});
+
+      // 4th handler exceeds the limit of 3
+      expect(() => {
+        limitedBus.subscribe("test", () => {});
+      }).toThrow("Maximum handlers");
+
+      expect(limitedBus.handlerCount("test")).toBe(3);
 
       limitedBus.dispose();
     });
@@ -438,7 +456,6 @@ describe("PubSubBus", () => {
         onDiagnostic: (event) => diagnostics.push(event),
       });
 
-      warnBus.subscribe("test", () => {});
       warnBus.subscribe("test", () => {});
       warnBus.subscribe("test", () => {});
 
@@ -464,9 +481,8 @@ describe("PubSubBus", () => {
 
       const received: Message[] = [];
       warnBus.subscribe("test", (msg) => received.push(msg));
-      warnBus.subscribe("test", () => {});
 
-      // Third subscription should be ignored
+      // Second subscription should be ignored (limit is 1)
       const unsubscribe = warnBus.subscribe("test", (msg) => received.push(msg));
 
       warnBus.publish("test", { value: 1 });
@@ -489,7 +505,6 @@ describe("PubSubBus", () => {
         onDiagnostic: (event) => diagnostics.push(event),
       });
 
-      throwBus.subscribe("test", () => {});
       throwBus.subscribe("test", () => {});
 
       expect(() => {
