@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
+  SchemaRegistry,
   registerSchema,
   getSchema,
   hasSchema,
@@ -504,5 +505,119 @@ describe("schema-validator", () => {
       // The key is it doesn't throw uncaught
       expect(result.valid).toBe(false);
     });
+  });
+});
+
+describe("SchemaRegistry (per-instance)", () => {
+  it("should register and retrieve schemas independently", () => {
+    const registryA = new SchemaRegistry();
+    const registryB = new SchemaRegistry();
+
+    registryA.register("item@1", { type: "object" });
+
+    expect(registryA.has("item@1")).toBe(true);
+    expect(registryB.has("item@1")).toBe(false);
+  });
+
+  it("should not leak schemas between instances", () => {
+    const registryA = new SchemaRegistry();
+    const registryB = new SchemaRegistry();
+
+    registryA.register("a@1", { type: "string" });
+    registryB.register("b@1", { type: "number" });
+
+    expect(registryA.has("a@1")).toBe(true);
+    expect(registryA.has("b@1")).toBe(false);
+    expect(registryB.has("b@1")).toBe(true);
+    expect(registryB.has("a@1")).toBe(false);
+  });
+
+  it("should get a registered schema", () => {
+    const registry = new SchemaRegistry();
+    const schema = { type: "object" as const };
+
+    registry.register("test@1", schema);
+    expect(registry.get("test@1")).toBe(schema);
+  });
+
+  it("should return undefined for unregistered schema", () => {
+    const registry = new SchemaRegistry();
+
+    expect(registry.get("missing@1")).toBeUndefined();
+  });
+
+  it("should unregister a schema", () => {
+    const registry = new SchemaRegistry();
+
+    registry.register("test@1", { type: "object" });
+    expect(registry.unregister("test@1")).toBe(true);
+    expect(registry.has("test@1")).toBe(false);
+  });
+
+  it("should return false when unregistering a non-existent schema", () => {
+    const registry = new SchemaRegistry();
+
+    expect(registry.unregister("missing@1")).toBe(false);
+  });
+
+  it("should clear all schemas in one instance without affecting another", () => {
+    const registryA = new SchemaRegistry();
+    const registryB = new SchemaRegistry();
+
+    registryA.register("a@1", { type: "string" });
+    registryB.register("b@1", { type: "number" });
+
+    registryA.clear();
+
+    expect(registryA.has("a@1")).toBe(false);
+    expect(registryB.has("b@1")).toBe(true);
+  });
+
+  it("should validate against a registered versioned schema", () => {
+    const registry = new SchemaRegistry();
+
+    registry.register("item@1", {
+      type: "object",
+      properties: {
+        sku: { type: "string" },
+        qty: { type: "number", minimum: 1 },
+      },
+      required: ["sku", "qty"],
+    });
+
+    const validResult = registry.validateAgainstVersion({ sku: "ABC", qty: 2 }, "item@1");
+    expect(validResult.valid).toBe(true);
+
+    const invalidResult = registry.validateAgainstVersion({ sku: "ABC", qty: 0 }, "item@1");
+    expect(invalidResult.valid).toBe(false);
+  });
+
+  it("should return error when validating against unregistered schema", () => {
+    const registry = new SchemaRegistry();
+    const result = registry.validateAgainstVersion({}, "missing@1");
+
+    expect(result.valid).toBe(false);
+    expect(result.errors?.[0].message).toContain('Schema "missing@1" is not registered');
+  });
+
+  it("should reject ReDoS patterns during registration", () => {
+    const registry = new SchemaRegistry();
+
+    expect(() => registry.register("evil@1", { type: "string", pattern: "(a+)+" })).toThrow(
+      "nested quantifiers"
+    );
+  });
+
+  it("should reject prototype pollution in schema properties", () => {
+    const registry = new SchemaRegistry();
+
+    expect(() =>
+      registry.register("bad@1", {
+        type: "object" as const,
+        properties: {
+          constructor: { type: "object" as const },
+        },
+      })
+    ).toThrow('dangerous property "constructor"');
   });
 });

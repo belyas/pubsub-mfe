@@ -1,10 +1,5 @@
 import { RetentionRingBuffer } from "./retention-buffer";
-import {
-  clearSchemas,
-  hasSchema,
-  registerSchema as registerSchemaInternal,
-  validateAgainstVersion,
-} from "./schema-validator";
+import { SchemaRegistry, clearSchemas } from "./schema-validator";
 import {
   clearMatcherCache,
   compileMatcher,
@@ -73,6 +68,7 @@ const DEFAULT_HISTORY_WINDOW_MS = 5 * 60 * 1000;
 export class PubSubBusImpl implements PubSubBus {
   private readonly config: ResolvedConfig;
   private readonly subscriptions = new Map<TopicPattern, Set<Subscription>>();
+  private readonly schemaRegistry = new SchemaRegistry();
   private retentionBuffer: RetentionRingBuffer | null = null;
   private readonly publishListeners = new Set<(message: Message) => void>();
   private disposed = false;
@@ -270,7 +266,7 @@ export class PubSubBusImpl implements PubSubBus {
 
   registerSchema(schemaVersion: SchemaVersion, schema: JsonSchema) {
     this.assertNotDisposed("registerSchema");
-    registerSchemaInternal(schemaVersion, schema);
+    this.schemaRegistry.register(schemaVersion, schema);
     this.debug("Schema registered", { schemaVersion });
   }
 
@@ -395,7 +391,7 @@ export class PubSubBusImpl implements PubSubBus {
       return;
     }
 
-    if (!hasSchema(schemaVersion)) {
+    if (!this.schemaRegistry.has(schemaVersion)) {
       const message = `Schema "${schemaVersion}" is not registered.`;
       if (mode === "strict") {
         throw new Error(message);
@@ -410,7 +406,7 @@ export class PubSubBusImpl implements PubSubBus {
       return;
     }
 
-    const result = validateAgainstVersion(payload, schemaVersion);
+    const result = this.schemaRegistry.validateAgainstVersion(payload, schemaVersion);
 
     if (!result.valid && result.errors) {
       this.emitDiagnostic({
@@ -688,8 +684,11 @@ export function createPubSub(config?: PubSubConfig): PubSubBus {
 }
 
 /**
- * Reset all internal state — schemas and matcher cache.
+ * Reset all internal state — global schema registry and matcher cache.
  * Use only in tests!
+ *
+ * Note: Each PubSubBus instance has its own schema registry.
+ * This only clears the global (standalone) schema registry and matcher cache.
  */
 export function __resetForTesting(): void {
   clearSchemas();

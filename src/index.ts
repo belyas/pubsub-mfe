@@ -54,6 +54,7 @@ export {
 
 // Schema utilities (advanced usage)
 export {
+  SchemaRegistry,
   registerSchema,
   getSchema,
   hasSchema,

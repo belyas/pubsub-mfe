@@ -11,19 +11,15 @@ import {
 export { isDangerousProperty, isUnsafeRegexPattern } from "./utils";
 
 /**
- * Schema registry — stores schemas by version identifier.
- */
-const schemaRegistry = new Map<SchemaVersion, JsonSchema>();
-
-/**
- * Register a schema for validation.
+ * Validate a schema definition for dangerous properties and unsafe patterns.
+ * Shared by both SchemaRegistry and the standalone registerSchema function.
  *
- * @param schemaVersion - Schema identifier with version (e.g., "cart.item.add@1")
- * @param schema - JSON Schema definition
+ * @param schemaVersion - Schema identifier (for error messages)
+ * @param schema - JSON Schema definition to validate
  *
- * @throws If schema contains dangerous property names
+ * @throws If schema contains dangerous property names or unsafe regex patterns
  */
-export function registerSchema(schemaVersion: SchemaVersion, schema: JsonSchema): void {
+function validateSchemaDefinition(schemaVersion: SchemaVersion, schema: JsonSchema): void {
   if (!schemaVersion || typeof schemaVersion !== "string") {
     throw new Error("Schema version must be a non-empty string.");
   }
@@ -34,6 +30,7 @@ export function registerSchema(schemaVersion: SchemaVersion, schema: JsonSchema)
 
   if (schema?.properties) {
     const propNames = getOwnPropertyNames(schema.properties);
+
     for (const key of propNames) {
       if (isDangerousProperty(key)) {
         throw new Error(
@@ -43,8 +40,10 @@ export function registerSchema(schemaVersion: SchemaVersion, schema: JsonSchema)
       }
 
       const propSchema = schema.properties[key];
+
       if (propSchema?.pattern) {
         const patternCheck = isUnsafeRegexPattern(propSchema.pattern);
+
         if (patternCheck.unsafe) {
           throw new Error(
             `Schema "${schemaVersion}" contains unsafe regex pattern in property "${key}": ${patternCheck.reason}`
@@ -56,46 +55,150 @@ export function registerSchema(schemaVersion: SchemaVersion, schema: JsonSchema)
 
   if (schema?.pattern) {
     const patternCheck = isUnsafeRegexPattern(schema.pattern);
+
     if (patternCheck.unsafe) {
       throw new Error(
         `Schema "${schemaVersion}" contains unsafe regex pattern: ${patternCheck.reason}`
       );
     }
   }
-
-  schemaRegistry.set(schemaVersion, schema);
 }
 
 /**
- * Get a registered schema.
+ * Per-instance schema registry.
+ *
+ * Encapsulates schema storage so each PubSubBus instance maintains
+ * its own isolated set of schemas. This prevents cross-contamination
+ * when multiple bus instances coexist (e.g., different microfrontends).
+ */
+export class SchemaRegistry {
+  private readonly schemas = new Map<SchemaVersion, JsonSchema>();
+
+  /**
+   * Register a schema for validation.
+   *
+   * @param schemaVersion - Schema identifier with version (e.g., "cart.item.add@1")
+   * @param schema - JSON Schema definition
+   *
+   * @throws If schema contains dangerous property names or unsafe regex patterns
+   */
+  register(schemaVersion: SchemaVersion, schema: JsonSchema): void {
+    validateSchemaDefinition(schemaVersion, schema);
+    this.schemas.set(schemaVersion, schema);
+  }
+
+  /**
+   * Get a registered schema.
+   *
+   * @param schemaVersion - Schema identifier
+   *
+   * @returns Schema if registered, undefined otherwise
+   */
+  get(schemaVersion: SchemaVersion): JsonSchema | undefined {
+    return this.schemas.get(schemaVersion);
+  }
+
+  /**
+   * Check if a schema is registered.
+   */
+  has(schemaVersion: SchemaVersion): boolean {
+    return this.schemas.has(schemaVersion);
+  }
+
+  /**
+   * Unregister a schema.
+   */
+  unregister(schemaVersion: SchemaVersion): boolean {
+    return this.schemas.delete(schemaVersion);
+  }
+
+  /**
+   * Clear all registered schemas.
+   */
+  clear(): void {
+    this.schemas.clear();
+  }
+
+  /**
+   * Validate a payload against a registered schema version.
+   *
+   * @param payload - Data to validate
+   * @param schemaVersion - Registered schema identifier
+   *
+   * @returns Validation result with errors if any
+   */
+  validateAgainstVersion(payload: unknown, schemaVersion: SchemaVersion): ValidationResult {
+    const schema = this.get(schemaVersion);
+
+    if (!schema) {
+      return {
+        valid: false,
+        errors: [
+          {
+            path: "",
+            message: `Schema "${schemaVersion}" is not registered`,
+            expected: "registered schema",
+          },
+        ],
+      };
+    }
+
+    return validatePayload(payload, schema);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Standalone (global) functions — backward-compatible API for advanced usage
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Default global schema registry for standalone usage.
+ * The PubSubBus uses its own per-instance registry instead.
+ */
+const globalRegistry = new SchemaRegistry();
+
+/**
+ * Register a schema in the global registry.
+ *
+ * @param schemaVersion - Schema identifier with version (e.g., "cart.item.add@1")
+ * @param schema - JSON Schema definition
+ *
+ * @throws If schema contains dangerous property names
+ */
+export function registerSchema(schemaVersion: SchemaVersion, schema: JsonSchema): void {
+  globalRegistry.register(schemaVersion, schema);
+}
+
+/**
+ * Get a registered schema from the global registry.
  *
  * @param schemaVersion - Schema identifier
  *
  * @returns Schema if registered, undefined otherwise
  */
 export function getSchema(schemaVersion: SchemaVersion): JsonSchema | undefined {
-  return schemaRegistry.get(schemaVersion);
+  return globalRegistry.get(schemaVersion);
 }
 
 /**
- * Check if a schema is registered.
+ * Check if a schema is registered in the global registry.
  */
 export function hasSchema(schemaVersion: SchemaVersion): boolean {
-  return schemaRegistry.has(schemaVersion);
+  return globalRegistry.has(schemaVersion);
 }
 
 /**
- * Unregister a schema.
+ * Unregister a schema from the global registry.
  */
 export function unregisterSchema(schemaVersion: SchemaVersion): boolean {
-  return schemaRegistry.delete(schemaVersion);
+  return globalRegistry.unregister(schemaVersion);
 }
 
 /**
- * Clear all registered schemas.
+ * Clear all schemas in the global registry.
  */
 export function clearSchemas(): void {
-  schemaRegistry.clear();
+  globalRegistry.clear();
 }
 
 /**
