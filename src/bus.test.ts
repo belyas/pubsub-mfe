@@ -225,6 +225,42 @@ describe("PubSubBus", () => {
 
       busWithDiag.dispose();
     });
+
+    it("should dispatch each handler in its own microtask for true isolation", async () => {
+      const executionOrder: string[] = [];
+      const diagnostics: DiagnosticEvent[] = [];
+      const busWithDiag = createPubSub({
+        onDiagnostic: (event) => diagnostics.push(event),
+      });
+
+      // Handler 1: throws synchronously
+      busWithDiag.subscribe("test", () => {
+        executionOrder.push("handler-1-start");
+        throw new Error("Handler 1 exploded");
+      });
+
+      // Handler 2: should still execute in its own microtask
+      busWithDiag.subscribe("test", () => {
+        executionOrder.push("handler-2-start");
+      });
+
+      // Handler 3: also should execute independently
+      busWithDiag.subscribe("test", () => {
+        executionOrder.push("handler-3-start");
+      });
+
+      busWithDiag.publish("test", { value: 1 });
+      await flushMicrotasks();
+
+      // All three handlers should have been invoked despite handler 1 throwing
+      expect(executionOrder).toEqual(["handler-1-start", "handler-2-start", "handler-3-start"]);
+
+      // The error from handler 1 should be captured in diagnostics
+      const errorEvents = diagnostics.filter((d) => d.type === "handler-error");
+      expect(errorEvents).toHaveLength(1);
+
+      busWithDiag.dispose();
+    });
   });
 
   describe("Concurrent access scenarios", () => {

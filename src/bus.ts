@@ -559,15 +559,22 @@ export class PubSubBusImpl implements PubSubBus {
     return true;
   }
 
+  /**
+   * Dispatch matched handlers, each in its own microtask for true isolation.
+   *
+   * Each handler runs in a separate microtask so that a synchronous error
+   * or CPU-intensive handler cannot starve subsequent handlers in the same
+   * dispatch cycle.
+   */
   private dispatchToHandlers<T>(
     message: Message<T>,
     handlers: Array<{ handler: MessageHandler<T>; index: number }>
   ): void {
-    globalThis.queueMicrotask(() => {
-      for (const { handler, index } of handlers) {
+    for (const { handler, index } of handlers) {
+      globalThis.queueMicrotask(() => {
         this.safeInvokeHandler(handler, message, index);
-      }
-    });
+      });
+    }
   }
 
   /**
