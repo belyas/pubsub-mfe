@@ -82,6 +82,8 @@ export interface IframeRegistration {
   retryCount: number;
   handshakeTimer: ReturnType<typeof setTimeout> | null;
   loadListener: (() => void) | null;
+  /** Resolve callback for the handshake promise — called when state transitions to "connected". */
+  handshakeResolve: (() => void) | null;
 }
 
 /**

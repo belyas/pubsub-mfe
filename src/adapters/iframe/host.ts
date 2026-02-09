@@ -168,6 +168,7 @@ export class IframeHost {
       retryCount: 0,
       handshakeTimer: null,
       loadListener: null,
+      handshakeResolve: null,
     };
 
     this.registrations.set(iframe, registration);
@@ -284,6 +285,9 @@ export class IframeHost {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.config.onHandshakeComplete(registration.iframe, registration.clientId!);
     } catch (error) {
+      // Clean up stale handshake promise callback
+      registration.handshakeResolve = null;
+
       this.log("error", `Handshake failed: ${(error as Error).message}`);
 
       if (registration.retryCount < this.config.maxRetries) {
@@ -304,12 +308,12 @@ export class IframeHost {
 
   private waitForHandshakeComplete(registration: IframeRegistration): Promise<void> {
     return new Promise((resolve) => {
-      const checkInterval = setInterval(() => {
-        if (registration.state === "connected") {
-          clearInterval(checkInterval);
-          resolve();
-        }
-      }, 10);
+      if (registration.state === "connected") {
+        resolve();
+        return;
+      }
+
+      registration.handshakeResolve = resolve;
     });
   }
 
@@ -365,6 +369,13 @@ export class IframeHost {
 
       contentWindow.postMessage(ackConfirm, registration.origin, [channel.port2]);
       registration.state = "connected";
+
+      // Resolve the handshake promise
+      if (registration.handshakeResolve) {
+        registration.handshakeResolve();
+        registration.handshakeResolve = null;
+      }
+
       this.log("info", `Connection established: ${registration.origin}`);
     } catch (error) {
       this.log("error", `Failed to send ACK_CONFIRM: ${(error as Error).message}`);
