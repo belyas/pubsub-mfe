@@ -186,9 +186,33 @@ export class OriginValidator {
  */
 export class MessageSizeValidator {
   private readonly maxBytes: number;
+  private readonly encoder = new TextEncoder();
+
+  /** Single-entry cache: avoids re-serializing the same message in isValid → getSize sequences. */
+  private lastMessage: unknown = undefined;
+  private lastSize = -1;
 
   constructor(config: { maxBytes: number }) {
     this.maxBytes = config.maxBytes;
+  }
+
+  /**
+   * Compute the byte size of a message (JSON-serialized, UTF-8 encoded).
+   * Caches the result so that a subsequent getSize() call on the same
+   * message reference returns instantly.
+   */
+  private computeSize(message: unknown): number {
+    if (message === this.lastMessage && this.lastSize >= 0) {
+      return this.lastSize;
+    }
+
+    const json = JSON.stringify(message);
+    const bytes = this.encoder.encode(json).length;
+
+    this.lastMessage = message;
+    this.lastSize = bytes;
+
+    return bytes;
   }
 
   /**
@@ -199,19 +223,17 @@ export class MessageSizeValidator {
    * @returns true if within limits, false otherwise
    */
   isValid(message: unknown): boolean {
-    const json = JSON.stringify(message);
-    const bytes = new TextEncoder().encode(json).length;
-
-    return bytes <= this.maxBytes;
+    return this.computeSize(message) <= this.maxBytes;
   }
 
   /**
    * Get the size of a message in bytes.
+   *
+   * If called immediately after isValid() with the same message reference,
+   * this returns the cached size without re-serializing.
    */
   getSize(message: unknown): number {
-    const json = JSON.stringify(message);
-
-    return new TextEncoder().encode(json).length;
+    return this.computeSize(message);
   }
 
   /**
