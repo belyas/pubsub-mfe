@@ -202,10 +202,10 @@ export class PubSubBusImpl implements PubSubBus {
         payload,
         schemaVersion: options.schemaVersion,
         meta: {
+          ...options.meta,
           source: options.source,
           correlationId: options.correlationId,
           _rateLimited: true,
-          ...options.meta,
         },
       } as Message<T>;
     }
@@ -299,6 +299,11 @@ export class PubSubBusImpl implements PubSubBus {
     return messages as Message<T>[];
   }
 
+  /**
+   * Get the count of handlers subscribed to a topic pattern.
+   * @param pattern - Topic pattern to match
+   * @returns Number of handlers subscribed to the pattern
+   */
   handlerCount(pattern?: TopicPattern) {
     if (pattern) {
       return this.subscriptions.get(pattern)?.size ?? 0;
@@ -313,6 +318,9 @@ export class PubSubBusImpl implements PubSubBus {
     return total;
   }
 
+  /**
+   * Clear all subscriptions and retention buffer.
+   */
   clear() {
     this.assertNotDisposed("clear");
 
@@ -330,6 +338,10 @@ export class PubSubBusImpl implements PubSubBus {
     this.debug("All subscriptions and retention buffer cleared");
   }
 
+  /**
+   * Dispose the bus, preventing further operations and clearing all resources.
+   * @returns void
+   */
   dispose() {
     if (this.disposed) {
       return;
@@ -341,6 +353,9 @@ export class PubSubBusImpl implements PubSubBus {
     this.debug("Bus disposed");
   }
 
+  /**
+   * Get hooks for adapter integration.
+   */
   getHooks(): BusHooks {
     this.assertNotDisposed("getHooks");
     return {
