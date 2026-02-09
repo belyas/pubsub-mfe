@@ -19,6 +19,9 @@ export function compileMatcher(pattern: TopicPattern): CompiledMatcher {
   const cached = matcherCache.get(pattern);
 
   if (cached) {
+    // LRU: move to end of Map iteration order on access
+    matcherCache.delete(pattern);
+    matcherCache.set(pattern, cached);
     return cached;
   }
 
