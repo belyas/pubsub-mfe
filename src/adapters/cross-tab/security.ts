@@ -120,10 +120,23 @@ export class RateLimiter {
 export class OriginValidator {
   private readonly allowedOrigins: string[];
   private readonly allowAny: boolean;
+  /** Pre-compiled regex for each wildcard pattern, keyed by the original pattern string. */
+  private readonly compiledPatterns: Map<string, RegExp>;
 
   constructor(config: { allowedOrigins?: string[] }) {
     this.allowedOrigins = config.allowedOrigins ?? [];
     this.allowAny = this.allowedOrigins.length === 0 || this.allowedOrigins.includes("*");
+
+    // Pre-compile wildcard patterns once at construction time
+    this.compiledPatterns = new Map();
+    for (const pattern of this.allowedOrigins) {
+      if (pattern.includes("*")) {
+        const regexPattern = pattern
+          .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // Escape special chars
+          .replace(/\*/g, "[^/.]+"); // Replace * with non-dot, non-slash chars
+        this.compiledPatterns.set(pattern, new RegExp(`^${regexPattern}$`));
+      }
+    }
   }
 
   /**
@@ -147,22 +160,15 @@ export class OriginValidator {
   }
 
   /**
-   * Match origin against a pattern with wildcards.
+   * Match origin against a pre-compiled wildcard pattern.
    */
   private matchesPattern(origin: string, pattern: string): boolean {
-    if (!pattern.includes("*")) {
+    const compiled = this.compiledPatterns.get(pattern);
+    if (!compiled) {
       return origin === pattern;
     }
 
-    // Convert wildcard pattern to regex
-    // e.g., https://*.example.com -> ^https:\/\/[^/.]+\.example\.com$
-    // Wildcard matches one subdomain level (no dots or slashes)
-    const regexPattern = pattern
-      .replace(/[.+?^${}()|[\]\\]/g, "\\$&") // Escape special chars
-      .replace(/\*/g, "[^/.]+"); // Replace * with non-dot, non-slash chars
-    const regex = new RegExp(`^${regexPattern}$`);
-
-    return regex.test(origin);
+    return compiled.test(origin);
   }
 }
 
