@@ -9,7 +9,10 @@ import {
   safePick,
   isUnsafeRegexPattern,
   MAX_PATTERN_LENGTH,
+  serializeDiagnosticEvent,
+  serializeError,
 } from "./utils";
+import type { DiagnosticEvent } from "./types";
 
 describe("utils", () => {
   describe("IsDangerousProperty", () => {
@@ -155,6 +158,64 @@ describe("utils", () => {
       expect(isUnsafeRegexPattern("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$").unsafe).toBe(
         false
       );
+    });
+  });
+
+  describe("Diagnostic serialization", () => {
+    it("should serialize Error objects preserving name/message/stack", () => {
+      const error = new TypeError("boom");
+      error.stack = "fake-stack";
+
+      expect(serializeError(error)).toEqual({
+        name: "TypeError",
+        message: "boom",
+        stack: "fake-stack",
+      });
+    });
+
+    it("should serialize handler-error diagnostic events", () => {
+      const event: DiagnosticEvent = {
+        type: "handler-error",
+        topic: "test.topic",
+        messageId: "abc-123",
+        handlerIndex: 2,
+        error: new Error("handler failed"),
+      };
+
+      const serialized = serializeDiagnosticEvent(event);
+
+      expect(serialized.type).toBe("handler-error");
+      if (serialized.type === "handler-error") {
+        expect(serialized.error).toEqual(
+          expect.objectContaining({
+            name: "Error",
+            message: "handler failed",
+          })
+        );
+      }
+
+      // Must be JSON serializable for postMessage-like use
+      expect(() => JSON.stringify(serialized)).not.toThrow();
+    });
+
+    it("should keep non-error diagnostics unchanged", () => {
+      const event: DiagnosticEvent = {
+        type: "validation-error",
+        topic: "test.topic",
+        schemaVersion: "test@1",
+        mode: "warn",
+        errors: [
+          {
+            path: "payload.id",
+            message: 'Required property "id" is missing',
+          },
+        ],
+      };
+
+      const serialized = serializeDiagnosticEvent(event);
+
+      expect(serialized).toEqual(event);
+      expect(() => JSON.stringify(serialized)).not.toThrow();
     });
   });
 });

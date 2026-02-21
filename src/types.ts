@@ -321,12 +321,14 @@ export interface DiagnosticPublish {
   readonly messageId: MessageId;
   readonly handlerCount: number;
   readonly durationMs: number;
+  readonly message?: string;
 }
 
 export interface DiagnosticSubscribe {
   readonly type: "subscribe";
   readonly pattern: string;
   readonly handlerCount: number;
+  readonly message?: string;
 }
 
 export interface DiagnosticUnsubscribe {

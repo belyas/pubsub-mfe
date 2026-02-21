@@ -6,7 +6,9 @@ import {
   matchTopic,
   validatePublishTopic,
 } from "./topic-matcher";
+import { getDevToolsRegistry } from "./devtools-registry";
 import type {
+  BusStats,
   BusHooks,
   CompiledMatcher,
   DiagnosticEvent,
@@ -21,18 +23,22 @@ import type {
   RetentionConfig,
   SchemaVersion,
   SubscribeOptions,
+  SubscriptionInfo,
   Topic,
   TopicPattern,
   Unsubscribe,
   ValidationMode,
 } from "./types";
-import { generateMessageId, getTimestamp, safePick } from "./utils";
+import { generateMessageId, getTimestamp, safePick, serializeDiagnosticEvent } from "./utils";
+
+export const DEVTOOLS_EVENT_NAME = "__pubsub_mfe_devtools_event__";
 
 interface Subscription {
   handler: MessageHandler;
   matcher: CompiledMatcher;
   options: SubscribeOptions;
   abortListener?: () => void;
+  createdAt: number;
 }
 
 interface ResolvedConfig {
@@ -42,6 +48,7 @@ interface ResolvedConfig {
   maxHandlersPerTopic: number;
   onMaxHandlersExceeded: "throw" | "warn";
   debug: boolean;
+  enableDevTools: boolean;
   retention?: RetentionConfig;
   rateLimit?: RateLimitConfig;
 }
@@ -53,6 +60,7 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   maxHandlersPerTopic: 50,
   onMaxHandlersExceeded: "throw",
   debug: false,
+  enableDevTools: false,
   retention: undefined,
   rateLimit: undefined,
 };
@@ -67,10 +75,12 @@ const DEFAULT_HISTORY_WINDOW_MS = 5 * 60 * 1000;
 
 export class PubSubBusImpl implements PubSubBus {
   private readonly config: ResolvedConfig;
+  private readonly instanceId: string;
   private readonly subscriptions = new Map<TopicPattern, Set<Subscription>>();
   private readonly schemaRegistry = new SchemaRegistry();
   private retentionBuffer: RetentionRingBuffer | null = null;
   private readonly publishListeners = new Set<(message: Message) => void>();
+  private messageStats = { published: 0, dispatched: 0 };
   private disposed = false;
   private rateLimitTokens: number = 0;
   private rateLimitLastRefill: number = 0;
@@ -79,6 +89,32 @@ export class PubSubBusImpl implements PubSubBus {
     const sanitizedConfig = safePick(config, ALLOWED_CONFIG_KEYS) as Partial<PubSubConfig>;
 
     this.config = { ...DEFAULT_CONFIG, ...sanitizedConfig };
+    this.instanceId = generateMessageId();
+
+    if (this.config.enableDevTools && !this.config.debug) {
+      this.emitDiagnostic({
+        type: "warning",
+        code: "DEVTOOLS_WITHOUT_DEBUG",
+        message:
+          "DevTools integration is enabled while debug mode is disabled. Recommended: enableDevTools: process.env.NODE_ENV !== 'production'.",
+      });
+    }
+
+    if (this.config.enableDevTools) {
+      const registry = getDevToolsRegistry();
+
+      registry?.register(this, {
+        instanceId: this.instanceId,
+        app: this.config.app,
+        createdAt: Date.now(),
+        config: {
+          app: this.config.app,
+          validationMode: this.config.validationMode,
+          debug: this.config.debug,
+          enableDevTools: this.config.enableDevTools,
+        },
+      });
+    }
 
     if (this.config.retention && this.config.retention.maxMessages > 0) {
       this.retentionBuffer = new RetentionRingBuffer(
@@ -114,6 +150,7 @@ export class PubSubBusImpl implements PubSubBus {
       handler: handler as MessageHandler,
       matcher,
       options,
+      createdAt: Date.now(),
     };
     let patternSubscriptions = this.subscriptions.get(pattern);
 
@@ -159,6 +196,11 @@ export class PubSubBusImpl implements PubSubBus {
 
     this.emitDiagnostic({
       type: "subscribe",
+      pattern,
+      handlerCount: patternSubscriptions.size,
+    });
+
+    this.emitDevToolsEvent("SUBSCRIPTION_ADDED", {
       pattern,
       handlerCount: patternSubscriptions.size,
     });
@@ -238,6 +280,7 @@ export class PubSubBusImpl implements PubSubBus {
         ...options.meta,
       },
     };
+
     const matchedHandlers = this.findMatchingHandlers(topic, options.source);
 
     this.retainMessage(message);
@@ -259,6 +302,20 @@ export class PubSubBusImpl implements PubSubBus {
       durationMs,
     });
 
+    this.messageStats.dispatched += matchedHandlers.length;
+
+    this.emitDevToolsEvent("MESSAGE_PUBLISHED", {
+      message: {
+        id: message.id,
+        topic: message.topic,
+        ts: message.ts,
+        payload: message.payload,
+        meta: message.meta,
+        schemaVersion: message.schemaVersion,
+      },
+    });
+
+    this.messageStats.published++;
     this.debug("Published", { topic, messageId: message.id, handlerCount: matchedHandlers.length });
 
     return message;
@@ -319,6 +376,40 @@ export class PubSubBusImpl implements PubSubBus {
   }
 
   /**
+   * Get bus statistics and metadata.
+   */
+  getStats(): BusStats {
+    return {
+      instanceId: this.instanceId,
+      app: this.config.app,
+      handlerCount: this.handlerCount(),
+      subscriptionPatterns: Array.from(this.subscriptions.keys()),
+      retentionBufferSize: this.retentionBuffer?.size ?? 0,
+      retentionBufferCapacity: this.retentionBuffer?.getCapacity() ?? 0,
+      messageCount: { ...this.messageStats },
+      disposed: this.disposed,
+    };
+  }
+
+  /**
+   * Get active subscription details.
+   */
+  getSubscriptions(): SubscriptionInfo[] {
+    const result: SubscriptionInfo[] = [];
+
+    for (const [pattern, handlers] of this.subscriptions.entries()) {
+      const first = handlers.values().next().value as Subscription | undefined;
+      result.push({
+        pattern,
+        handlerCount: handlers.size,
+        createdAt: first?.createdAt ?? Date.now(),
+      });
+    }
+
+    return result;
+  }
+
+  /**
    * Clear all subscriptions and retention buffer.
    */
   clear() {
@@ -348,6 +439,12 @@ export class PubSubBusImpl implements PubSubBus {
     }
 
     this.clear();
+
+    if (this.config.enableDevTools) {
+      const registry = getDevToolsRegistry();
+      registry?.unregister(this);
+    }
+
     this.publishListeners.clear();
     this.disposed = true;
     this.debug("Bus disposed");
@@ -466,6 +563,11 @@ export class PubSubBusImpl implements PubSubBus {
 
     this.emitDiagnostic({
       type: "unsubscribe",
+      pattern,
+      handlerCount: patternSubscriptions.size,
+    });
+
+    this.emitDevToolsEvent("SUBSCRIPTION_REMOVED", {
       pattern,
       handlerCount: patternSubscriptions.size,
     });
@@ -640,6 +742,36 @@ export class PubSubBusImpl implements PubSubBus {
     } catch (e) {
       // Swallow diagnostic handler errors to prevent cascading failures
       this.debug((e as Error)?.message, { error: e });
+    }
+
+    this.emitDevToolsEvent("DIAGNOSTIC", {
+      event: serializeDiagnosticEvent(event),
+    });
+  }
+
+  /**
+   * Emit an internal DevTools event. This must never affect app execution.
+   */
+  private emitDevToolsEvent(eventType: string, data: Record<string, unknown>): void {
+    if (!this.config.enableDevTools) {
+      return;
+    }
+
+    try {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent(DEVTOOLS_EVENT_NAME, {
+            detail: {
+              busId: this.instanceId,
+              type: eventType,
+              timestamp: Date.now(),
+              ...data,
+            },
+          })
+        );
+      }
+    } catch {
+      // Swallow: DevTools integrations must never break app logic.
     }
   }
 

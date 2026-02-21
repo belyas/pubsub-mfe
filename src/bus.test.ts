@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { createPubSub, __resetForTesting } from "./bus";
+import { createPubSub, __resetForTesting, DEVTOOLS_EVENT_NAME } from "./bus";
+import { getDevToolsRegistry } from "./devtools-registry";
 import type { DiagnosticEvent, Message, PubSubBus } from "./types";
 
 /**
@@ -1576,6 +1577,118 @@ describe("PubSubBus", () => {
           payload: {},
         });
       }).toThrow("Cannot dispatchExternal: bus has been disposed.");
+    });
+  });
+
+  describe("DevTools integration", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("should generate unique instanceId per bus", () => {
+      const busA = createPubSub({ enableDevTools: true });
+      const busB = createPubSub({ enableDevTools: true });
+
+      expect(busA.getStats().instanceId).not.toBe(busB.getStats().instanceId);
+
+      busA.dispose();
+      busB.dispose();
+    });
+
+    it("should expose stats counters and subscription patterns", async () => {
+      const statsBus = createPubSub({ app: "stats-app", enableDevTools: true });
+
+      statsBus.subscribe("test.topic", () => {});
+      statsBus.publish("test.topic", { ok: true });
+
+      await flushMicrotasks();
+
+      const stats = statsBus.getStats();
+
+      expect(stats.app).toBe("stats-app");
+      expect(stats.handlerCount).toBe(1);
+      expect(stats.subscriptionPatterns).toContain("test.topic");
+      expect(stats.messageCount.published).toBe(1);
+      expect(stats.messageCount.dispatched).toBe(1);
+
+      statsBus.dispose();
+    });
+
+    it("should return subscriptions with stable createdAt timestamp", () => {
+      const subBus = createPubSub({ enableDevTools: true });
+
+      subBus.subscribe("topic.one", () => {});
+      subBus.subscribe("topic.two", () => {});
+
+      const subscriptions = subBus.getSubscriptions();
+      const patterns = subscriptions.map((s) => s.pattern);
+
+      expect(subscriptions).toHaveLength(2);
+      expect(patterns).toContain("topic.one");
+      expect(patterns).toContain("topic.two");
+      expect(subscriptions.every((s) => typeof s.createdAt === "number")).toBe(true);
+
+      subBus.dispose();
+    });
+
+    it("should register and unregister with DevTools registry", () => {
+      const registry = getDevToolsRegistry();
+      expect(registry).toBeDefined();
+
+      const devBus = createPubSub({ app: "registry-app", enableDevTools: true });
+      const id = devBus.getStats().instanceId;
+
+      expect(registry?.getBus(id)).toBe(devBus);
+      expect(registry?.getAll().some((m) => m.instanceId === id)).toBe(true);
+
+      devBus.dispose();
+
+      expect(registry?.getBus(id)).toBeUndefined();
+      expect(registry?.getAll().some((m) => m.instanceId === id)).toBe(false);
+    });
+
+    it("should emit warning when enableDevTools is true without debug", () => {
+      const diagnostics: DiagnosticEvent[] = [];
+      const diagBus = createPubSub({
+        enableDevTools: true,
+        debug: false,
+        onDiagnostic: (event) => diagnostics.push(event),
+      });
+
+      const warning = diagnostics.find(
+        (d) => d.type === "warning" && d.code === "DEVTOOLS_WITHOUT_DEBUG"
+      );
+
+      expect(warning).toBeDefined();
+      // @ts-expect-error Accessing internal message for test verification
+      expect(warning?.message).toContain("process.env.NODE_ENV !== 'production'");
+
+      diagBus.dispose();
+    });
+
+    it("should emit internal DevTools publish events", () => {
+      const eventSpy = vi.fn();
+      const listener = ((event: Event) => {
+        const custom = event as CustomEvent;
+        eventSpy(custom.detail);
+      }) as EventListener;
+
+      window.addEventListener(DEVTOOLS_EVENT_NAME, listener);
+
+      const eventBus = createPubSub({ enableDevTools: true });
+      const expectedBusId = eventBus.getStats().instanceId;
+
+      eventBus.publish("events.topic", { value: 1 });
+
+      const publishedEvent = eventSpy.mock.calls
+        .map((call) => call[0] as { type?: string; busId?: string })
+        .find((detail) => detail.type === "MESSAGE_PUBLISHED");
+
+      expect(publishedEvent).toBeDefined();
+      expect(publishedEvent?.busId).toBe(expectedBusId);
+
+      eventBus.dispose();
+      window.removeEventListener(DEVTOOLS_EVENT_NAME, listener);
     });
   });
 });

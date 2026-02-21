@@ -1,4 +1,17 @@
-import { MessageId, RegexSafetyCheck } from "./types";
+import type {
+  DiagnosticEvent,
+  DiagnosticHandlerError,
+  DiagnosticLimitExceeded,
+  DiagnosticPublish,
+  DiagnosticRateLimited,
+  DiagnosticSubscribe,
+  DiagnosticUnsubscribe,
+  DiagnosticValidationError,
+  DiagnosticWarning,
+  MessageId,
+  RegexSafetyCheck,
+  SerializableError,
+} from "./types";
 
 /**
  * Properties that could enable prototype pollution attacks.
@@ -268,4 +281,45 @@ export function isValidMessageId(id: string): id is MessageId {
   const fallbackRegex = /^[0-9a-z]+-[0-9a-z]+-[0-9a-z]+$/i;
 
   return uuidRegex.test(id) || fallbackRegex.test(id);
+}
+
+/**
+ * Serializable version of a DiagnosticEvent.
+ * Replaces Error objects with SerializableError for safe postMessage/JSON.
+ */
+export type SerializableDiagnosticEvent =
+  | DiagnosticPublish
+  | DiagnosticSubscribe
+  | DiagnosticUnsubscribe
+  | (Omit<DiagnosticHandlerError, "error"> & { error: SerializableError })
+  | DiagnosticValidationError
+  | DiagnosticWarning
+  | DiagnosticLimitExceeded
+  | DiagnosticRateLimited;
+
+/**
+ * Serialize an Error object for safe transmission.
+ * Preserves name, message, and stack trace.
+ */
+export function serializeError(error: Error): SerializableError {
+  return {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+  };
+}
+
+/**
+ * Serialize a diagnostic event for DevTools.
+ * Replaces Error objects with serializable versions.
+ */
+export function serializeDiagnosticEvent(event: DiagnosticEvent): SerializableDiagnosticEvent {
+  if (event.type === "handler-error") {
+    return {
+      ...event,
+      error: serializeError(event.error),
+    };
+  }
+
+  return event;
 }
