@@ -208,6 +208,16 @@ export interface PubSubConfig {
   debug?: boolean;
 
   /**
+   * Enable DevTools integration.
+   *
+   * Recommended for development only.
+   * Consider: enableDevTools: process.env.NODE_ENV !== 'production'
+   *
+   * @default false
+   */
+  enableDevTools?: boolean;
+
+  /**
    * In-memory message retention for replay support.
    *
    * When configured, the bus retains recent messages in a circular buffer
@@ -492,6 +502,18 @@ export interface PubSubBus {
   handlerCount(pattern?: TopicPattern): number;
 
   /**
+   * Get bus statistics and metadata.
+   * Useful for observability and DevTools integrations.
+   */
+  getStats(): BusStats;
+
+  /**
+   * Get active subscription details.
+   * Includes topic patterns and handler counts.
+   */
+  getSubscriptions(): SubscriptionInfo[];
+
+  /**
    * Clear all subscriptions.
    * Use with caution — typically for testing or cleanup.
    */
@@ -517,6 +539,56 @@ export interface PubSubBus {
 export interface BusHooks {
   onPublish(listener: (message: Message) => void): Unsubscribe;
   dispatchExternal(message: Message): void;
+}
+
+/**
+ * Runtime statistics for a bus instance.
+ */
+export interface BusStats {
+  instanceId: string;
+  app: string;
+  handlerCount: number;
+  subscriptionPatterns: string[];
+  retentionBufferSize: number;
+  retentionBufferCapacity: number;
+  messageCount: {
+    published: number;
+    dispatched: number;
+  };
+  disposed: boolean;
+}
+
+/**
+ * Metadata exposed for DevTools discovery.
+ */
+export interface BusMetadata {
+  instanceId: string;
+  app: string;
+  createdAt: number;
+  config: {
+    app: string;
+    validationMode?: string;
+    debug?: boolean;
+    enableDevTools?: boolean;
+  };
+}
+
+/**
+ * Serializable error shape for postMessage/JSON transfer.
+ */
+export interface SerializableError {
+  name: string;
+  message: string;
+  stack?: string;
+}
+
+/**
+ * Subscription metadata for diagnostics and DevTools views.
+ */
+export interface SubscriptionInfo {
+  pattern: string;
+  handlerCount: number;
+  createdAt: number;
 }
 
 /**
