@@ -75,8 +75,10 @@ describe("DevTools registry", () => {
     expect(registryA).toBe(registryB);
     expect(Object.isFrozen(registryA)).toBe(true);
 
-    expect((window as Window & { __PUBSUB_MFE_DEVTOOLS_REGISTRY__?: unknown })
-      .__PUBSUB_MFE_DEVTOOLS_REGISTRY__).toBe(registryA);
+    expect(
+      (window as Window & { __PUBSUB_MFE_DEVTOOLS_REGISTRY__?: unknown })
+        .__PUBSUB_MFE_DEVTOOLS_REGISTRY__
+    ).toBe(registryA);
   });
 
   it("should register buses and return active metadata", () => {
