@@ -212,6 +212,8 @@ export class CrossTabAdapter {
       this.handleRemoteMessage(envelope);
     });
 
+    hooks.notifyAdapterAttached("cross-tab");
+
     if (this.config.debug) {
       console.log("[CrossTabAdapter] Attached to bus", { clientId: this.clientId });
     }
@@ -256,6 +258,15 @@ export class CrossTabAdapter {
     }
 
     this.transport.close();
+
+    // Notify before clearing: the bus ref is still needed for the devtools event.
+    if (this.bus) {
+      try {
+        this.bus.getHooks().notifyAdapterDetached("cross-tab");
+      } catch {
+        // Bus may already be disposed.
+      }
+    }
 
     this.bus = null;
 

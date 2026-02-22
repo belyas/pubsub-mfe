@@ -535,12 +535,27 @@ export interface PubSubBus {
 }
 
 /**
+ * Adapter type identifiers for DevTools discovery.
+ */
+export type AdapterType = "cross-tab" | "iframe" | "history";
+
+/**
  * Hook interface for adapter integration.
  * Adapters use this to listen for local publishes and inject external messages.
  */
 export interface BusHooks {
   onPublish(listener: (message: Message) => void): Unsubscribe;
   dispatchExternal(message: Message): void;
+  /**
+   * Notify the bus that an adapter has been attached.
+   * Used by DevTools to track active adapters.
+   */
+  notifyAdapterAttached(adapterType: AdapterType): void;
+  /**
+   * Notify the bus that an adapter has been detached.
+   * Used by DevTools to track active adapters.
+   */
+  notifyAdapterDetached(adapterType: AdapterType): void;
 }
 
 /**

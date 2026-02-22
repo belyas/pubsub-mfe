@@ -16,6 +16,7 @@ import type { Message } from '@pubsub/types';
 const bus = createPubSub({
   debug: true,
   app: 'history-demo',
+  enableDevTools: true,
 });
 const transport = new BroadcastChannelTransport({ channelName: 'history-demo' });
 const crossTabAdapter = createCrossTabAdapter({

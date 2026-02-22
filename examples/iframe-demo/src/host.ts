@@ -3,7 +3,7 @@ import { createIframeHost } from '@belyas/pubsub-mfe/adapters/iframe';
 
 const origin = window.location.origin;
 
-const bus = createPubSub({ debug: false });
+const bus = createPubSub({ debug: false, enableDevTools: true });
 
 const iframeHost = createIframeHost(bus, {
   trustedOrigins: [origin],

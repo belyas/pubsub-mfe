@@ -91,6 +91,8 @@ export class IframeHost {
       this.handleBusMessage(message);
     });
 
+    hooks.notifyAdapterAttached("iframe");
+
     if (this.observer && typeof document !== "undefined") {
       this.observer.observe(document.body, {
         childList: true,
@@ -128,6 +130,14 @@ export class IframeHost {
     if (this.unsubscribe) {
       this.unsubscribe();
       this.unsubscribe = null;
+    }
+
+    if (this.bus) {
+      try {
+        this.bus.getHooks().notifyAdapterDetached("iframe");
+      } catch {
+        // Bus may already be disposed.
+      }
     }
 
     this.attached = false;

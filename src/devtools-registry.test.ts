@@ -32,6 +32,8 @@ function createBusMock(instanceId: string): PubSubBus {
     getHooks: () => ({
       onPublish: () => () => {},
       dispatchExternal: () => {},
+      notifyAdapterAttached: () => {},
+      notifyAdapterDetached: () => {},
     }),
   };
 }

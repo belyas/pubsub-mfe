@@ -96,6 +96,8 @@ export class HistoryAdapter {
       });
     });
 
+    hooks.notifyAdapterAttached("history");
+
     this.gc.start();
 
     this.log("debug", "Attached to bus", {
@@ -122,6 +124,14 @@ export class HistoryAdapter {
 
     this.gc.stop();
     this.storage.close();
+
+    if (this.bus) {
+      try {
+        this.bus.getHooks().notifyAdapterDetached("history");
+      } catch {
+        // Bus may already be disposed.
+      }
+    }
 
     this.bus = null;
 

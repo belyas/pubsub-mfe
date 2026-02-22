@@ -493,6 +493,18 @@ export class PubSubBusImpl implements PubSubBus {
           handlerCount: matchedHandlers.length,
         });
       },
+      notifyAdapterAttached: (adapterType) => {
+        this.debug("Adapter attached", { adapterType });
+        this.emitDevToolsEvent("ADAPTER_ATTACHED", {
+          adapterType,
+        });
+      },
+      notifyAdapterDetached: (adapterType) => {
+        this.debug("Adapter detached", { adapterType });
+        this.emitDevToolsEvent("ADAPTER_DETACHED", {
+          adapterType,
+        });
+      },
     };
   }
 

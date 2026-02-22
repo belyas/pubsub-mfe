@@ -95,7 +95,7 @@ export {
 export { getDevToolsRegistry } from "./devtools-registry";
 
 // Adapter types
-export type { BusHooks } from "./types";
+export type { BusHooks, AdapterType } from "./types";
 
 // History adapter types
 export type {
