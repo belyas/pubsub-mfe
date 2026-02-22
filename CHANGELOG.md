@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.8.1](https://github.com/belyas/pubsub-mfe/compare/v0.8.0...v0.8.1) (2026-02-22)
+
 ## [0.8.0](https://github.com/belyas/pubsub-mfe/compare/v0.7.4...v0.8.0) (2026-02-22)
 
 
