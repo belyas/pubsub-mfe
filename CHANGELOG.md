@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.8.0](https://github.com/belyas/pubsub-mfe/compare/v0.7.4...v0.8.0) (2026-02-22)
+
+
+### Features
+
+* **devtools:** add devtools registry ([6706256](https://github.com/belyas/pubsub-mfe/commit/67062567c0b74e0d90b79b48c3184e55f82d9a65))
+
 ### [0.7.4](https://github.com/belyas/pubsub-mfe/compare/v0.7.3...v0.7.4) (2026-02-09)
 
 ### [0.7.3](https://github.com/belyas/pubsub-mfe/compare/v0.7.2...v0.7.3) (2026-02-09)
