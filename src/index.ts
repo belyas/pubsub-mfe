@@ -27,6 +27,10 @@ export type {
   // Configuration
   PubSubConfig,
   PubSubBus,
+  BusStats,
+  BusMetadata,
+  SubscriptionInfo,
+  SerializableError,
   RetentionConfig,
   RateLimitConfig,
 
@@ -81,7 +85,14 @@ export {
 
   // Type guards
   isPlainObject,
+
+  // DevTools serialization
+  serializeError,
+  serializeDiagnosticEvent,
 } from "./utils";
+
+// DevTools registry
+export { getDevToolsRegistry } from "./devtools-registry";
 
 // Adapter types
 export type { BusHooks } from "./types";
